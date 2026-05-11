@@ -1,0 +1,35 @@
+{
+  "name": "hub",
+  "version": "0.4.5",
+  "description": "21 local subagents including a master orchestrator, 42 skills, 17 workflows, and 20 agent shims for OpenAI Codex. Supports automatic workspace routing plus optional @hub invocation.",
+  "author": {
+    "name": "Suyash Bhatkar",
+    "email": "info@apguru.com",
+    "url": "https://github.com/SKB3002"
+  },
+  "homepage": "https://github.com/SKB3002/agenthub",
+  "repository": "https://github.com/SKB3002/agenthub",
+  "license": "MIT",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AgentHub",
+    "shortDescription": "21 agents, 42 skills, 17 workflows",
+    "developerName": "Suyash Bhatkar",
+    "category": "Productivity",
+    "defaultPrompt": [
+      "@hub debug <symptom or error>",
+      "@hub create <what to build>",
+      "@hub plan <feature to plan>"
+    ]
+  },
+  "keywords": [
+    "codex",
+    "codex-plugin",
+    "agenthub",
+    "agents",
+    "skills",
+    "workflows",
+    "developer-tools",
+    "ai-agents"
+  ]
+}
