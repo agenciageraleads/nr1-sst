@@ -5,15 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  doc, 
-  getDoc 
-} from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { api, formatDateValue } from '../lib/api';
 import { 
   BarChart3, 
   Users, 
@@ -59,16 +51,11 @@ export default function ResultsPage() {
       if (!id) return;
       setLoading(true);
       try {
-        const campDoc = await getDoc(doc(db, 'campaigns', id));
-        if (campDoc.exists()) {
-          setCampaign({ id: campDoc.id, ...campDoc.data() });
-        }
-
-        const q = query(collection(db, 'employee_responses'), where('campaignId', '==', id));
-        const snap = await getDocs(q);
-        setResponses(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        const { campaign, responses } = await api.results(id);
+        setCampaign(campaign);
+        setResponses(responses);
       } catch (error) {
-        handleFirestoreError(error, OperationType.LIST, 'responses');
+        console.error('Erro ao carregar resultados:', error);
       } finally {
         setLoading(false);
       }
@@ -119,7 +106,7 @@ export default function ResultsPage() {
             <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">{campaign?.name}</h1>
             <div className="flex items-center gap-3 text-sm text-slate-500 mt-1">
                <span className="flex items-center gap-1.5 font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md"><BarChart3 className="w-4 h-4" /> Resultados</span>
-               <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" /> {campaign?.startDate ? format(campaign.startDate.toDate(), "dd/MM/yyyy") : ''}</span>
+               <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" /> {formatDateValue(campaign?.startDate) ? format(formatDateValue(campaign.startDate)!, "dd/MM/yyyy") : ''}</span>
             </div>
           </div>
         </div>

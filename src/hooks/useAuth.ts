@@ -1,43 +1,40 @@
-import { useState, useEffect } from 'react';
-import { User, onAuthStateChanged } from 'firebase/auth';
-import { auth, db } from '../lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import { api, AppUser } from '../lib/api';
+
+let cachedUser: AppUser | null = null;
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthorized, setIsAuthorized] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<AppUser | null>(cachedUser);
+  const [isAuthorized, setIsAuthorized] = useState(Boolean(cachedUser));
+  const [loading, setLoading] = useState(!cachedUser);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log('Auth state changed:', firebaseUser?.email);
-      if (firebaseUser) {
-        const userEmail = firebaseUser.email?.toLowerCase() || '';
-        // Check super admin email
-        if (userEmail === 'contato@venturatc.com.br') {
-          console.log('Super admin detected');
-          setIsAuthorized(true);
-        } else {
-          // Check users collection using email as ID
-          try {
-            const userDoc = await getDoc(doc(db, 'users', userEmail));
-            const exists = userDoc.exists();
-            console.log('User authorization check:', exists);
-            setIsAuthorized(exists);
-          } catch (error) {
-            console.error('Error checking authorization in Firestore:', error);
-            setIsAuthorized(false);
-          }
-        }
-      } else {
+    let active = true;
+    api.me()
+      .then(({ user }) => {
+        if (!active) return;
+        cachedUser = user;
+        setUser(user);
+        setIsAuthorized(true);
+      })
+      .catch(() => {
+        if (!active) return;
+        cachedUser = null;
+        setUser(null);
         setIsAuthorized(false);
-      }
-      setUser(firebaseUser);
-      setLoading(false);
-    });
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
-    return () => unsubscribe();
+    return () => {
+      active = false;
+    };
   }, []);
 
   return { user, isAuthorized, loading };
+}
+
+export function setCachedUser(user: AppUser | null) {
+  cachedUser = user;
 }

@@ -5,15 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  addDoc, 
-  serverTimestamp 
-} from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { api } from '../lib/api';
 import { EMPLOYEE_QUESTIONS, SCALE_LABELS, FREQUENCY_LABELS } from '../constants/questions';
 import { 
   Shield, 
@@ -48,25 +40,9 @@ export default function EmployeeForm() {
   useEffect(() => {
     const fetchCampaign = async () => {
       try {
-        const q = query(
-          collection(db, 'campaigns'), 
-          where('employeeFormToken', '==', token),
-          where('status', '==', 'ativa')
-        );
-        const snap = await getDocs(q);
-        if (snap.empty) {
-          setCampaign(null);
-        } else {
-          const campData = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
-          setCampaign(campData);
-
-          // Fetch company data
-          const companiesSnap = await getDocs(query(collection(db, 'companies'), where('status', '==', 'ativa')));
-          const companyDoc = companiesSnap.docs.find(d => d.id === campData.companyId);
-          if (companyDoc) {
-            setCompany(companyDoc.data());
-          }
-        }
+        const { campaign, company } = await api.publicEmployeeForm(token || '');
+        setCampaign(campaign);
+        setCompany(company);
       } catch (error) {
         console.error(error);
       } finally {
@@ -137,7 +113,7 @@ export default function EmployeeForm() {
     setIsSubmitting(true);
     try {
       const scores = calculateScores(answers);
-      await addDoc(collection(db, 'employee_responses'), {
+      await api.submitEmployeeResponse({
         campaignId: campaign.id,
         companyId: campaign.companyId,
         sector: answers['sector'] || 'Não Informado',
@@ -147,11 +123,10 @@ export default function EmployeeForm() {
         workSchedule: answers['workSchedule'] || 'Não Informado',
         answers: answers,
         scores: scores,
-        submittedAt: serverTimestamp(),
       });
       setSubmitted(true);
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'employee_responses');
+      console.error('Erro ao enviar resposta do colaborador:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -209,7 +184,7 @@ export default function EmployeeForm() {
               >
                 <div className="bg-brand-50 p-6 rounded-2xl text-brand-900 border border-brand-100">
                   <p className="text-sm font-bold leading-relaxed">
-                    Bem-vindo ao canal de diagnóstico da Ventura TC. Esta ferramenta é fundamental para o Gerenciamento de Riscos Ocupacionais (GRO).
+                    Bem-vindo ao canal de diagnóstico da Ventura. Esta ferramenta é fundamental para o Gerenciamento de Riscos Ocupacionais (GRO).
                   </p>
                   <p className="mt-4 text-xs font-medium text-brand-700 leading-relaxed">
                     Analisaremos fatores que afetam o bem-estar e a segurança psicológica no seu trabalho. Suas respostas são tratadas estatisticamente e o anonimato é garantido por lei (LGPD).

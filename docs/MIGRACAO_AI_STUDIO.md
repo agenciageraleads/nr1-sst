@@ -1,49 +1,25 @@
 # Migracao Do Google AI Studio
 
-Objetivo: manter o desenvolvimento do NR1-SST independente do Google AI Studio, com codigo versionado e validavel localmente.
+Documento historico da saida do Google AI Studio.
 
-## Situacao Atual
+## Status Em 2026-05-11
 
-Em 2026-05-11, o codigo real da aplicacao foi publicado no GitHub e baixado para `/Users/mariatereza/Documents/NR1-SST`.
+- O codigo principal esta no repositorio local `/Users/mariatereza/Documents/NR1-SST`.
+- O frontend roda com Vite em `http://localhost:3000`.
+- A API propria roda em `http://localhost:4000`.
+- O banco local roda em Postgres 14 via `docker compose`.
+- Firebase Auth, Firestore e Gemini nao fazem mais parte do caminho operacional do app.
 
-O app original no AI Studio esta registrado em:
+## Resultado Da Migracao Local
 
-```text
-https://ai.studio/apps/79474dc1-a64f-4ec4-a0f7-4efbfb5388f7
-```
+- `src/lib/firebase.ts` foi removido.
+- As telas passaram a consumir `src/lib/api.ts`.
+- `useAuth` usa `GET /me` na API propria.
+- O login usa email/senha em `POST /auth/login`.
+- As dependencias `firebase`, `@google/genai` e regras Firebase foram removidas.
 
-## Arquivos Recebidos Do App
+## Proximo Passo
 
-- `package.json`
-- `package-lock.json`
-- `index.html`
-- `vite.config.ts`
-- `tsconfig.json`
-- `src/`
-- `public/logo-symbol.png`
-- `firebase.json`
-- `firestore.rules`
-- `.env.example`
+A continuidade da migracao esta documentada em:
 
-## Stack Identificada
-
-- React 19
-- Vite 6
-- TypeScript
-- Firebase
-- Tailwind CSS 4
-- Gemini API
-
-## O Que Ainda Depende De Configuracao Local
-
-- Criar `.env.local`.
-- Preencher `GEMINI_API_KEY`.
-- Confirmar `APP_URL` conforme ambiente local ou deploy.
-- Instalar dependencias com `npm install`.
-- Rodar `npm run dev`.
-
-## Politica De Segredos
-
-O AI Studio injeta segredos em runtime. Localmente, eles precisam estar em `.env.local`.
-
-Arquivos com segredos reais nao devem ser versionados. O repositorio deve manter apenas `.env.example`.
+- [Migração para VPS própria](VPS_MIGRACAO.md)

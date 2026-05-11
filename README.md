@@ -1,69 +1,72 @@
 # NR1-SST
 
-Aplicacao NR1-SST exportada do Google AI Studio e preparada para desenvolvimento local com Codex.
+Aplicacao NR1-SST preparada para desenvolvimento local no Codex, com frontend React/Vite, API Node/TypeScript e Postgres.
 
-## Estado atual
+## Estado Atual
 
-O codigo da aplicacao ja esta neste repositorio. O projeto usa React, Vite, TypeScript, Firebase, Tailwind CSS e Gemini.
-
-App original no AI Studio:
-https://ai.studio/apps/79474dc1-a64f-4ec4-a0f7-4efbfb5388f7
+- Frontend: React 19 + Vite 6 + Tailwind CSS 4.
+- API: Express + TypeScript em `api/`.
+- Banco: Postgres via `DATABASE_URL`.
+- Auth: email/senha proprio com sessao httpOnly.
+- Firebase/Google AI Studio: removidos do caminho operacional.
+- Deploy alvo: `nr01.venturatc.com.br` e `api-nr01.venturatc.com.br`.
 
 ## Documentacao
 
 - [Ambiente local](docs/AMBIENTE_LOCAL.md)
-- [Migração do Google AI Studio](docs/MIGRACAO_AI_STUDIO.md)
 - [Checklist de validação](docs/CHECKLIST_VALIDACAO.md)
 - [Registro de decisões](docs/DECISOES.md)
-- [Agentes Codex](docs/AGENTES_CODEX.md)
+- [Fluxo de trabalho](docs/FLUXO_DE_TRABALHO.md)
+- [Migração para VPS própria](docs/VPS_MIGRACAO.md)
 
-## Rodar localmente
+## Rodar Localmente
 
 Use o Node local instalado neste projeto:
 
 ```bash
 source scripts/use-local-node.sh
 npm install
-```
-
-Configure as variaveis de ambiente:
-
-```bash
 cp .env.example .env.local
 ```
 
-Edite `.env.local` e preencha a chave `GEMINI_API_KEY`.
-
-Depois rode:
+Suba Postgres e API com containers:
 
 ```bash
+docker compose up postgres api
+```
+
+Em outro terminal, rode o frontend:
+
+```bash
+source scripts/use-local-node.sh
 npm run dev
 ```
 
-O Vite esta configurado para subir em:
+URLs locais:
 
 ```text
-http://localhost:3000
+Frontend: http://localhost:3000
+API: http://localhost:4000
+Health: http://localhost:4000/health
+```
+
+Login inicial de desenvolvimento:
+
+```text
+admin@nr1.local
+admin123
 ```
 
 ## Scripts
 
 ```bash
 npm run dev
+npm run api:dev
 npm run build
 npm run preview
 npm run lint
 npm run clean
 ```
-
-## Stack
-
-- React 19
-- Vite 6
-- TypeScript
-- Firebase
-- Tailwind CSS 4
-- Gemini API
 
 ## Observacoes
 

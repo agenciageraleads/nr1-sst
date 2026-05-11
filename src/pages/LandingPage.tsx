@@ -40,7 +40,7 @@ export default function LandingPage() {
             <span className="text-brand-600">Riscos Psicossociais (NR-01)</span>
           </h1>
           <p className="text-lg md:text-xl text-slate-600 max-w-3xl mx-auto mb-10 leading-relaxed font-medium">
-            Atenda aos requisitos legais da NR-01 com a metodologia exclusiva da Ventura TC para identificar, 
+            Atenda aos requisitos legais da NR-01 com a metodologia exclusiva da Ventura para identificar,
             avaliar e mitigar riscos organizacionais e psicossociais no seu PGR.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -98,7 +98,7 @@ export default function LandingPage() {
           <Logo variant="light" className="justify-center mb-10 scale-125" />
           <h2 className="text-3xl md:text-5xl font-black mb-8 uppercase tracking-tighter italic">Engenharia de Segurança <br/> com Foco Pessoas</h2>
           <p className="text-slate-400 text-lg mb-12 font-medium">
-            Melhore o clima organizacional, reduza o absenteísmo e cumpra a legislação com a Ventura TC.
+            Melhore o clima organizacional, reduza o absenteísmo e cumpra a legislação com a Ventura.
           </p>
           <Link 
             to="/login"
@@ -112,7 +112,7 @@ export default function LandingPage() {
       <footer className="py-12 border-t border-slate-200 bg-white px-6 md:px-12">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6 text-slate-400 text-xs font-bold uppercase tracking-widest">
           <Logo className="opacity-50 grayscale scale-75" />
-          <div>© 2026 Ventura TC • Consultoria e Treinamentos</div>
+          <div>© 2026 Ventura • Consultoria e Treinamentos</div>
         </div>
       </footer>
     </div>

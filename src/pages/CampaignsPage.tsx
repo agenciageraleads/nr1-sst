@@ -4,18 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { 
-  collection, 
-  getDocs, 
-  addDoc, 
-  query, 
-  orderBy, 
-  serverTimestamp,
-  where,
-  deleteDoc,
-  doc
-} from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { api, formatDateValue } from '../lib/api';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { 
   ClipboardList, 
@@ -72,26 +61,21 @@ export default function CampaignsPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const qCamps = query(collection(db, 'campaigns'), orderBy('createdAt', 'desc'));
-      const snapCamps = await getDocs(qCamps);
-      
-      const qComps = query(collection(db, 'companies'), where('status', '==', 'ativa'));
-      const snapComps = await getDocs(qComps);
-      
-      const companiesData = snapComps.docs.reduce((acc: any, doc) => {
-        acc[doc.id] = doc.data().razaoSocial;
+      const [{ campaigns }, { companies }] = await Promise.all([api.listCampaigns(), api.listCompanies()]);
+      const activeCompanies = companies.filter((company) => company.status === 'ativa');
+      const companiesData = activeCompanies.reduce((acc: any, company) => {
+        acc[company.id] = company.razaoSocial;
         return acc;
       }, {});
 
-      setCompanies(snapComps.docs.map(d => ({ id: d.id, ...d.data() })));
-      
-      setCampaigns(snapCamps.docs.map(doc => ({ 
-        id: doc.id, 
-        companyName: companiesData[doc.data().companyId] || 'Empresa Excluída',
-        ...doc.data() 
+      setCompanies(activeCompanies);
+
+      setCampaigns(campaigns.map((campaign) => ({
+        companyName: companiesData[campaign.companyId] || 'Empresa Excluída',
+        ...campaign
       })));
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'campaigns');
+      console.error('Erro ao listar campanhas:', error);
     } finally {
       setLoading(false);
     }
@@ -109,19 +93,18 @@ export default function CampaignsPage() {
       const campaignToken = generateToken();
       const employeeToken = generateToken();
       
-      await addDoc(collection(db, 'campaigns'), {
+      await api.createCampaign({
         ...data,
         companyFormToken: campaignToken,
         employeeFormToken: employeeToken,
-        createdAt: serverTimestamp(),
-        startDate: new Date(data.startDate),
-        endDate: new Date(data.endDate),
+        startDate: data.startDate,
+        endDate: data.endDate,
       });
       setIsModalOpen(false);
       reset();
       fetchData();
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'campaigns');
+      console.error('Erro ao criar campanha:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -137,10 +120,10 @@ export default function CampaignsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir esta campanha?')) return;
     try {
-      await deleteDoc(doc(db, 'campaigns', id));
+      await api.deleteCampaign(id);
       fetchData();
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'campaigns/' + id);
+      console.error('Erro ao excluir campanha:', error);
     }
   };
 
@@ -216,7 +199,7 @@ export default function CampaignsPage() {
                   </div>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
                     <span className="flex items-center gap-1.5 font-medium"><Building2 className="w-4 h-4 text-slate-400" /> {campaign.companyName}</span>
-                    <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-slate-400" /> {format(campaign.startDate.toDate(), "dd 'de' MMM", { locale: ptBR })} - {format(campaign.endDate.toDate(), "dd 'de' MMM", { locale: ptBR })}</span>
+                    <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-slate-400" /> {formatDateValue(campaign.startDate) ? format(formatDateValue(campaign.startDate)!, "dd 'de' MMM", { locale: ptBR }) : '--'} - {formatDateValue(campaign.endDate) ? format(formatDateValue(campaign.endDate)!, "dd 'de' MMM", { locale: ptBR }) : '--'}</span>
                   </div>
                 </div>
               </div>

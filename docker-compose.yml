@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: nr1
+      POSTGRES_PASSWORD: nr1
+      POSTGRES_DB: nr1_sst
+    ports:
+      - "5432:5432"
+    volumes:
+      - nr1_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nr1 -d nr1_sst"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    environment:
+      DATABASE_URL: postgres://nr1:nr1@postgres:5432/nr1_sst
+      JWT_SECRET: dev-only-change-me
+      APP_URL: http://localhost:3000
+      ADMIN_EMAIL: admin@nr1.local
+      ADMIN_PASSWORD: admin123
+      PORT: 4000
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  nr1_postgres_data:

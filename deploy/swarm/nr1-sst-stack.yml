@@ -1,0 +1,35 @@
+version: "3.8"
+
+services:
+  api:
+    image: nr1-sst-api:prod
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      APP_URL: https://nr01.venturatc.com.br
+      PORT: 4000
+    networks:
+      - Portainer
+    deploy:
+      labels:
+        traefik.enable: "true"
+        traefik.http.routers.nr1-api.entrypoints: websecure
+        traefik.http.routers.nr1-api.rule: Host(`api-nr01.venturatc.com.br`)
+        traefik.http.routers.nr1-api.tls.certresolver: letsencryptresolver
+        traefik.http.services.nr1-api.loadbalancer.server.port: "4000"
+
+  web:
+    image: nr1-sst-web:prod-20260511-ventura-brand
+    networks:
+      - Portainer
+    deploy:
+      labels:
+        traefik.enable: "true"
+        traefik.http.routers.nr1-web.entrypoints: websecure
+        traefik.http.routers.nr1-web.rule: Host(`nr01.venturatc.com.br`)
+        traefik.http.routers.nr1-web.tls.certresolver: letsencryptresolver
+        traefik.http.services.nr1-web.loadbalancer.server.port: "80"
+
+networks:
+  Portainer:
+    external: true

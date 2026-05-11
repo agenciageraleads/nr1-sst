@@ -13,7 +13,7 @@ export function Logo({ className, showText = true, variant = 'dark' }: LogoProps
       <div className="relative w-10 h-10 flex-shrink-0">
         <img 
           src="/logo-symbol.png" 
-          alt="Ventura TC Logo" 
+          alt="Ventura Logo"
           className="w-full h-full object-contain"
         />
       </div>
@@ -23,7 +23,7 @@ export function Logo({ className, showText = true, variant = 'dark' }: LogoProps
             "font-black tracking-tighter leading-none text-xl uppercase italic",
             variant === 'dark' ? "text-slate-900" : "text-white"
           )}>
-            VENTURA <span className={variant === 'dark' ? "text-brand-600" : "text-brand-400"}>TC</span>
+            VENTURA
           </span>
           <span className={cn(
             "text-[8px] font-black uppercase tracking-[0.2em] leading-none mt-0.5",

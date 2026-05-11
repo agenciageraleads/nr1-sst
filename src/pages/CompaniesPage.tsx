@@ -5,17 +5,7 @@
 
 import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import Papa from 'papaparse';
-import { 
-  collection, 
-  getDocs, 
-  addDoc, 
-  query, 
-  orderBy, 
-  serverTimestamp,
-  updateDoc,
-  doc
-} from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { api } from '../lib/api';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { 
   Building2, 
@@ -76,12 +66,10 @@ export default function CompaniesPage() {
   const fetchCompanies = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, 'companies'), orderBy('createdAt', 'desc'));
-      const querySnapshot = await getDocs(q);
-      const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setCompanies(data);
+      const { companies } = await api.listCompanies();
+      setCompanies(companies);
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'companies');
+      console.error('Erro ao listar empresas:', error);
     } finally {
       setLoading(false);
     }
@@ -95,28 +83,16 @@ export default function CompaniesPage() {
     setIsSubmitting(true);
     try {
       if (editingCompany) {
-        // When updating, we must include all required fields by firestore.rules
-        await updateDoc(doc(db, 'companies', editingCompany.id), {
-          ...data,
-          createdAt: editingCompany.createdAt, // Stay with original createdAt as required by rules
-          updatedAt: serverTimestamp(),
-        });
+        await api.updateCompany(editingCompany.id, data);
       } else {
-        await addDoc(collection(db, 'companies'), {
-          ...data,
-          createdAt: serverTimestamp(),
-        });
+        await api.createCompany(data);
       }
       setIsModalOpen(false);
       setEditingCompany(null);
       reset();
       fetchCompanies();
     } catch (error) {
-       handleFirestoreError(
-         error, 
-         editingCompany ? OperationType.UPDATE : OperationType.CREATE, 
-         'companies'
-       );
+      console.error('Erro ao salvar empresa:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -186,11 +162,10 @@ export default function CompaniesPage() {
               responsavelEmail: row.responsavelEmail || row['E-mail'] || '',
               responsavelTelefone: row.responsavelTelefone || row['Telefone'] || '',
               status: 'ativa',
-              createdAt: serverTimestamp()
             };
 
             if (companyData.razaoSocial && companyData.cnpj) {
-              await addDoc(collection(db, 'companies'), companyData);
+              await api.createCompany(companyData);
               successCount++;
             } else {
               errorCount++;

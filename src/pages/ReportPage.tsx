@@ -5,15 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  doc, 
-  getDoc 
-} from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { api, formatDateValue } from '../lib/api';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { 
   ArrowLeft, 
@@ -43,20 +35,10 @@ export default function ReportPage() {
       if (!id) return;
       setLoading(true);
       try {
-        const campDoc = await getDoc(doc(db, 'campaigns', id));
-        if (campDoc.exists()) {
-          const campData = { id: campDoc.id, ...campDoc.data() } as any;
-          setCampaign(campData);
-          
-          const compDoc = await getDoc(doc(db, 'companies', campData.companyId));
-          if (compDoc.exists()) {
-            setCompany(compDoc.data());
-          }
-        }
-
-        const q = query(collection(db, 'employee_responses'), where('campaignId', '==', id));
-        const snap = await getDocs(q);
-        setResponses(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        const { campaign, company, responses } = await api.report(id);
+        setCampaign(campaign);
+        setCompany(company);
+        setResponses(responses);
       } catch (error) {
         console.error(error);
       } finally {
@@ -154,7 +136,7 @@ export default function ReportPage() {
                    <div>
                       <p className="text-[10px] text-slate-400 font-extrabold uppercase mb-1">Período de Coleta</p>
                       <p className="font-bold text-slate-900">
-                        {campaign?.startDate ? format(campaign.startDate.toDate(), "dd/MM/yy") : ''} até {campaign?.endDate ? format(campaign.endDate.toDate(), "dd/MM/yy") : ''}
+                        {formatDateValue(campaign?.startDate) ? format(formatDateValue(campaign.startDate)!, "dd/MM/yy") : ''} até {formatDateValue(campaign?.endDate) ? format(formatDateValue(campaign.endDate)!, "dd/MM/yy") : ''}
                       </p>
                    </div>
                    <div>
@@ -172,7 +154,7 @@ export default function ReportPage() {
                  O presente diagnóstico atende aos requisitos do **item 1.5 da NR-01 (Gerenciamento de Riscos Ocupacionais)**, focado na identificação de perigos e avaliação de riscos relacionados à organização do trabalho e fatores psicossociais.
                </p>
                <p>
-                 Utilizou-se a metodologia de **Avaliação Psicossocial Organizacional (APO)**, ferramenta proprietária da Ventura TC, que analisa a exposição coletiva a estressores ocupacionais preservando o anonimato individual (LGPD). Os riscos são classificados em uma escala de 0 a 100%, onde valores acima de 40% indicam necessidade de controle.
+                 Utilizou-se a metodologia de **Avaliação Psicossocial Organizacional (APO)**, ferramenta proprietária da Ventura, que analisa a exposição coletiva a estressores ocupacionais preservando o anonimato individual (LGPD). Os riscos são classificados em uma escala de 0 a 100%, onde valores acima de 40% indicam necessidade de controle.
                </p>
             </div>
           </section>
@@ -292,7 +274,7 @@ export default function ReportPage() {
              <div className="grid grid-cols-1 md:grid-cols-2 gap-20 w-full max-w-2xl">
                 <div className="space-y-2">
                    <div className="w-full h-px bg-slate-300 mx-auto" />
-                   <p className="text-sm font-bold text-slate-900 uppercase">Consultoria Técnica - Ventura TC</p>
+                   <p className="text-sm font-bold text-slate-900 uppercase">Consultoria Técnica - Ventura</p>
                    <p className="text-[10px] text-slate-400 font-black">CREA-GO / Responsável Técnico</p>
                 </div>
                 <div className="space-y-2">

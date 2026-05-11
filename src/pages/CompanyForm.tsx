@@ -5,17 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  addDoc, 
-  serverTimestamp,
-  doc,
-  getDoc
-} from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { api } from '../lib/api';
 import { Logo } from '../components/ui/Logo';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { 
@@ -52,31 +42,9 @@ export default function CompanyForm() {
       if (!token) return;
       setLoading(true);
       try {
-        // Step 1: Find campaign by company token
-        const campaignsRef = collection(db, 'campaigns');
-        const qCamp = query(
-          campaignsRef, 
-          where('companyFormToken', '==', token),
-          where('status', '==', 'ativa')
-        );
-        const campSnap = await getDocs(qCamp);
-        
-        if (campSnap.empty) {
-          setCampaign(null);
-          setLoading(false);
-          return;
-        }
-
-        const campData = { id: campSnap.docs[0].id, ...campSnap.docs[0].data() } as any;
-        setCampaign(campData);
-
-        // Step 2: Fetch company data using companyId from campaign
-        const compRef = doc(db, 'companies', campData.companyId);
-        const compSnap = await getDoc(compRef);
-        
-        if (compSnap.exists()) {
-          setCompany(compSnap.data());
-        }
+        const { campaign, company } = await api.publicCompanyForm(token);
+        setCampaign(campaign);
+        setCompany(company);
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
       } finally {
@@ -94,17 +62,16 @@ export default function CompanyForm() {
   const submitForm = async () => {
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, 'company_responses'), {
+      await api.submitCompanyResponse({
         campaignId: campaign.id,
         companyId: campaign.companyId,
         answers: answers,
-        submittedAt: serverTimestamp(),
         submittedByEmail: answers['email'] || '',
         submittedByName: answers['name'] || ''
       });
       setSubmitted(true);
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'company_responses');
+      console.error('Erro ao enviar formulario institucional:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -140,7 +107,7 @@ export default function CompanyForm() {
         <h2 className="text-3xl font-extrabold text-slate-900 mb-4 uppercase tracking-tight">Formulário Recebido</h2>
         <p className="text-slate-500 max-w-md mx-auto leading-relaxed font-medium">
           As informações institucionais da <strong>{company?.razaoSocial}</strong> foram salvas com sucesso. 
-          A consultoria Ventura TC entrará em contato para os próximos passos.
+          A consultoria Ventura entrará em contato para os próximos passos.
         </p>
         <button onClick={() => navigate('/')} className="mt-10 px-8 py-3 bg-brand-600 text-white rounded-xl font-bold active:scale-95 transition-all shadow-lg shadow-brand-100">Voltar ao Início</button>
       </div>

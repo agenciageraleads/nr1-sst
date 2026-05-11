@@ -5,8 +5,8 @@
 
 import { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { auth } from '../../lib/firebase';
-import { signOut } from 'firebase/auth';
+import { api } from '../../lib/api';
+import { setCachedUser, useAuth } from '../../hooks/useAuth';
 import { 
   LayoutDashboard, 
   Building2, 
@@ -35,9 +35,11 @@ const navItems = [
 
 export default function MainLayout({ children }: MainLayoutProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const handleLogout = async () => {
-    await signOut(auth);
+    await api.logout();
+    setCachedUser(null);
     navigate('/');
   };
 
@@ -96,10 +98,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
           <div className="flex items-center gap-4">
              <div className="text-right hidden sm:block">
                <p className="text-sm font-bold text-slate-900">Admin Geral</p>
-               <p className="text-xs text-slate-500">{auth.currentUser?.email}</p>
+               <p className="text-xs text-slate-500">{user?.email}</p>
              </div>
              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-brand-600 font-bold border-2 border-white shadow-sm ring-1 ring-slate-100">
-               {auth.currentUser?.email?.[0].toUpperCase()}
+               {user?.email?.[0]?.toUpperCase()}
              </div>
           </div>
         </header>

@@ -4,14 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { 
-  collection, 
-  getDocs, 
-  query, 
-  orderBy,
-  where
-} from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { api, formatDateValue } from '../lib/api';
 import { 
   FileText, 
   Search, 
@@ -52,40 +45,8 @@ export default function ReportsListPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch all campaigns
-      const campaignsSnap = await getDocs(query(collection(db, 'campaigns'), orderBy('createdAt', 'desc')));
-      const campaignsData = campaignsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-
-      // Fetch all companies to map names
-      const companiesSnap = await getDocs(collection(db, 'companies'));
-      const companiesMap = companiesSnap.docs.reduce((acc, doc) => {
-        acc[doc.id] = doc.data().razaoSocial;
-        return acc;
-      }, {} as Record<string, string>);
-
-      // For each campaign, get counts
-      const enrichedCampaigns = await Promise.all(campaignsData.map(async (camp: any) => {
-        // Employee responses count
-        const empSnap = await getDocs(query(
-          collection(db, 'employee_responses'),
-          where('campaignId', '==', camp.id)
-        ));
-        
-        // Company response check
-        const compSnap = await getDocs(query(
-          collection(db, 'company_responses'),
-          where('campaignId', '==', camp.id)
-        ));
-
-        return {
-          ...camp,
-          companyName: companiesMap[camp.companyId] || 'Empresa não encontrada',
-          employeeResponsesCount: empSnap.size,
-          companyResponseSubmitted: !compSnap.empty
-        };
-      }));
-
-      setCampaigns(enrichedCampaigns);
+      const { reports } = await api.reports();
+      setCampaigns(reports);
     } catch (error) {
       console.error('Error fetching reports data:', error);
     } finally {
@@ -146,7 +107,7 @@ export default function ReportsListPage() {
                     </span>
                     <span className="flex items-center gap-1">
                       <Calendar className="w-4 h-4" /> 
-                      {camp.createdAt?.seconds ? format(new Date(camp.createdAt.seconds * 1000), "dd 'de' MMM, yyyy", { locale: ptBR }) : 'Data não disponível'}
+                      {formatDateValue(camp.createdAt) ? format(formatDateValue(camp.createdAt)!, "dd 'de' MMM, yyyy", { locale: ptBR }) : 'Data não disponível'}
                     </span>
                   </div>
                 </div>
@@ -193,4 +154,3 @@ export default function ReportsListPage() {
     </div>
   );
 }
-

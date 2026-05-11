@@ -26,8 +26,7 @@ import {
   ResponsiveContainer,
   Cell
 } from 'recharts';
-import { collection, getCountFromServer, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { api } from '../lib/api';
 
 export default function Dashboard() {
   usePageTitle('VTC - Painel de Gestão');
@@ -50,36 +49,19 @@ export default function Dashboard() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        // 1. Total Companies
-        const companiesSnapshot = await getCountFromServer(collection(db, 'companies'));
-        const totalCompanies = companiesSnapshot.data().count;
-
-        // 2. Active Campaigns
-        const activeCampaignsQuery = query(collection(db, 'campaigns'), where('status', '==', 'ativa'));
-        const activeCampaignsSnapshot = await getCountFromServer(activeCampaignsQuery);
-        const totalActiveCampaigns = activeCampaignsSnapshot.data().count;
-
-        // 3. Total Responses (Employee + Company)
-        const employeeResponsesSnapshot = await getCountFromServer(collection(db, 'employee_responses'));
-        const companyResponsesSnapshot = await getCountFromServer(collection(db, 'company_responses'));
-        const totalResponses = employeeResponsesSnapshot.data().count + companyResponsesSnapshot.data().count;
+        const summary = await api.dashboardSummary();
 
         setStats([
-          { label: 'Empresas Ativas', value: totalCompanies.toString(), icon: Building2, color: 'bg-brand-600', trend: 'Total cadastrado' },
-          { label: 'Campanhas em Curso', value: totalActiveCampaigns.toString(), icon: ClipboardList, color: 'bg-emerald-500', trend: 'Status: Ativa' },
-          { label: 'Total de Respostas', value: totalResponses.toString(), icon: MessageSquareReply, color: 'bg-green-500', trend: 'Colaborador + Empresa' },
+          { label: 'Empresas Ativas', value: summary.totalCompanies.toString(), icon: Building2, color: 'bg-brand-600', trend: 'Total cadastrado' },
+          { label: 'Campanhas em Curso', value: summary.totalActiveCampaigns.toString(), icon: ClipboardList, color: 'bg-emerald-500', trend: 'Status: Ativa' },
+          { label: 'Total de Respostas', value: summary.totalResponses.toString(), icon: MessageSquareReply, color: 'bg-green-500', trend: 'Colaborador + Empresa' },
           { label: 'Alertas de Risco', value: '0', icon: AlertTriangle, color: 'bg-amber-500', trend: 'Nível Crítico' },
         ]);
 
         // 4. Basic aggregations for chart (Fetching last responses to show some movement)
-        const lastResponsesQuery = query(
-          collection(db, 'employee_responses'), 
-          orderBy('submittedAt', 'desc'),
-          limit(20)
-        );
-        const lastResponses = await getDocs(lastResponsesQuery);
-        
-        if (!lastResponses.empty) {
+        const lastResponses = summary.lastEmployeeResponses || [];
+
+        if (lastResponses.length > 0) {
           // This is a simplified logic to show REAL data impact on chart
           let overloaddSum = 0;
           let leadershipSum = 0;
@@ -88,8 +70,7 @@ export default function Dashboard() {
           let supportSum = 0;
           let count = 0;
 
-          lastResponses.forEach(doc => {
-            const data = doc.data();
+          lastResponses.forEach((data) => {
             const answers = data.answers || {};
             // Simplified mapping of answers to categories based on NR-01 structure
             // Assuming answers are stored in a map-like structure

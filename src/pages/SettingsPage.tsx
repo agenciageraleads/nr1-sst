@@ -4,17 +4,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { 
-  collection, 
-  getDocs, 
-  setDoc, 
-  deleteDoc,
-  doc,
-  query, 
-  orderBy,
-  serverTimestamp
-} from 'firebase/firestore';
-import { db, auth } from '../lib/firebase';
+import { api } from '../lib/api';
+import { setCachedUser, useAuth } from '../hooks/useAuth';
 import { 
   Settings as SettingsIcon, 
   UserPlus, 
@@ -35,6 +26,7 @@ const userSchema = z.object({
   name: z.string().min(3, 'Nome muito curto'),
   email: z.string().email('E-mail inválido'),
   role: z.enum(['admin', 'editor']),
+  password: z.string().min(6, 'Mínimo 6 caracteres').optional().or(z.literal('')),
 });
 
 type UserFormValues = z.infer<typeof userSchema>;
@@ -55,8 +47,9 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
 
-  const currentUser = auth.currentUser;
+  const { user: currentUser } = useAuth();
 
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<UserFormValues>({
     resolver: zodResolver(userSchema),
@@ -74,13 +67,8 @@ export default function SettingsPage() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
-      const querySnapshot = await getDocs(q);
-      const usersData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as SystemUser[];
-      setUsers(usersData);
+      const { users } = await api.listUsers();
+      setUsers(users as SystemUser[]);
     } catch (error) {
       console.error('Error fetching users:', error);
     } finally {
@@ -91,11 +79,8 @@ export default function SettingsPage() {
   const onSubmit = async (data: UserFormValues) => {
     setIsSubmitting(true);
     try {
-      await setDoc(doc(db, 'users', data.email.toLowerCase()), {
-        ...data,
-        email: data.email.toLowerCase(),
-        createdAt: serverTimestamp()
-      });
+      const result = await api.createUser({ ...data, email: data.email.toLowerCase() });
+      setTemporaryPassword(result.temporaryPassword || null);
       setIsModalOpen(false);
       reset();
       fetchUsers();
@@ -110,7 +95,7 @@ export default function SettingsPage() {
   const handleDeleteUser = async (userId: string) => {
     if (!confirm('Tem certeza que deseja remover este acesso?')) return;
     try {
-      await deleteDoc(doc(db, 'users', userId));
+      await api.deleteUser(userId);
       fetchUsers();
     } catch (error) {
       console.error('Error deleting user:', error);
@@ -136,15 +121,19 @@ export default function SettingsPage() {
             </h2>
             <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl">
               <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                {currentUser?.displayName?.[0] || currentUser?.email?.[0]?.toUpperCase()}
+                {currentUser?.name?.[0] || currentUser?.email?.[0]?.toUpperCase()}
               </div>
               <div className="overflow-hidden">
-                <p className="font-bold text-slate-900 truncate">{currentUser?.displayName || 'Admin Geral'}</p>
+                <p className="font-bold text-slate-900 truncate">{currentUser?.name || 'Admin Geral'}</p>
                 <p className="text-sm text-slate-500 truncate">{currentUser?.email}</p>
               </div>
             </div>
             <button 
-              onClick={() => auth.signOut()}
+              onClick={async () => {
+                await api.logout();
+                setCachedUser(null);
+                window.location.href = '/';
+              }}
               className="w-full mt-6 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-red-100 text-red-600 font-bold hover:bg-red-50 transition-colors"
             >
               <LogOut className="w-4 h-4" /> Sair do Sistema
@@ -237,6 +226,11 @@ export default function SettingsPage() {
                 </button>
               </div>
             )}
+            {temporaryPassword && (
+              <div className="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-xl text-sm text-amber-800">
+                Senha temporária gerada: <code className="font-bold">{temporaryPassword}</code>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -300,6 +294,17 @@ export default function SettingsPage() {
                       </label>
                     </div>
                   </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Senha inicial</label>
+                    <input
+                      {...register('password')}
+                      type="password"
+                      placeholder="Deixe vazio para gerar automaticamente"
+                      className="w-full p-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    />
+                    {errors.password && <p className="text-xs text-red-500 font-medium">{errors.password.message}</p>}
+                  </div>
                 </div>
 
                 <div className="flex gap-3 pt-4">
@@ -327,4 +332,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
