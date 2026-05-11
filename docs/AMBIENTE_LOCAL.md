@@ -1,64 +1,43 @@
-# Ambiente local
+# Ambiente Local
 
-Este documento registra o que a máquina precisa ter para desenvolver e validar o NR1-SST localmente.
+Este documento registra o ambiente necessario para desenvolver e validar o NR1-SST localmente.
 
-## Estado detectado em 2026-05-11
+## Estado Detectado Em 2026-05-11
 
 - Pasta local: `/Users/mariatereza/Documents/NR1-SST`
-- `git`: disponível via wrapper local em `~/.local/bin/git`, versão `2.54.0`.
-- Command Line Tools: não instaladas; o pacote não apareceu no catálogo do `softwareupdate` neste macOS.
-- `node`: instalado localmente no projeto em `.tools/node`, versão `v24.15.0`.
-- `npm`: instalado localmente no projeto, versão `11.12.1`.
-- `corepack`: instalado localmente no projeto, versão `0.34.6`.
-- `pnpm`: não encontrado no PATH.
-- `yarn`: não encontrado no PATH.
-- `bun`: não encontrado no PATH.
-- `package.json`: ainda não existe no repositório.
+- `git`: `/usr/bin/git`, versao `2.50.1 (Apple Git-155)`
+- Command Line Tools: instaladas em `/Library/Developer/CommandLineTools`
+- `node`: instalado localmente no projeto em `.tools/node`, versao `v24.15.0`
+- `npm`: instalado localmente no projeto, versao `11.12.1`
+- `corepack`: instalado localmente no projeto, versao `0.34.6`
+- App: React + Vite + TypeScript + Firebase
+- Gerenciador: npm, com `package-lock.json`
 
-## Git no macOS
+## Git
 
-O `xcode-select --install` abriu o instalador das ferramentas da Apple, mas o macOS informou que o item não estava disponível no servidor de Atualização de Software. Como alternativa, foi instalado um Git local no usuário, usando bottles do Homebrew extraídos para:
-
-```text
-~/.local/homebrew
-```
-
-O wrapper ativo fica em:
-
-```text
-~/.local/bin/git
-```
-
-Validação em um novo shell:
+As Command Line Tools do Xcode foram instaladas via:
 
 ```bash
-which git
+softwareupdate --install "Command Line Tools for Xcode 26.5-26.5"
+```
+
+Validacao:
+
+```bash
 git --version
-git ls-remote https://github.com/git/git.git HEAD
-```
-
-O clone padrão seria:
-
-```bash
-git clone https://github.com/agenciageraleads/nr1-sst.git
-cd nr1-sst
-```
-
-Como esta pasta já existia com documentação local, o repositório foi conectado preservando os arquivos atuais. O remoto ativo é:
-
-```bash
+xcode-select -p
 git remote -v
 ```
 
-## Node local do projeto
+## Node Local Do Projeto
 
-Este projeto já tem um Node LTS local instalado em:
+Este projeto usa um Node local em:
 
 ```text
 .tools/node
 ```
 
-Para usar `node`, `npm` e `corepack` nesta sessão de terminal:
+Para ativar `node`, `npm` e `corepack` na sessao atual:
 
 ```bash
 source scripts/use-local-node.sh
@@ -72,64 +51,49 @@ npm --version
 corepack --version
 ```
 
-## Instalar Node no sistema, opcional
-
-Recomendação: usar Node LTS, não uma versão experimental, para reduzir ruído em dependências frontend.
-
-Opção com `nvm`:
+## Instalar Dependencias
 
 ```bash
-nvm install --lts
-nvm use --lts
-node --version
-npm --version
+source scripts/use-local-node.sh
+npm install
 ```
 
-Opção com Homebrew:
+## Variaveis De Ambiente
+
+Crie o arquivo local a partir do exemplo:
 
 ```bash
-brew install node
-node --version
-npm --version
+cp .env.example .env.local
 ```
 
-Se o projeto exportado usar `pnpm`:
+Edite `.env.local` e configure:
+
+```text
+GEMINI_API_KEY=...
+APP_URL=...
+```
+
+Nunca versionar `.env.local` nem segredos reais.
+
+## Rodar Localmente
 
 ```bash
-corepack enable
-corepack prepare pnpm@latest --activate
-pnpm --version
+source scripts/use-local-node.sh
+npm run dev
 ```
 
-## Como descobrir o comando correto de desenvolvimento
+O Vite esta configurado para:
 
-Depois que o código do app existir nesta pasta, abra o `package.json` e confira:
-
-```json
-{
-  "scripts": {
-    "dev": "..."
-  }
-}
+```text
+http://localhost:3000
 ```
 
-Use o lockfile para escolher o gerenciador:
+## Scripts Disponiveis
 
-- `package-lock.json`: use `npm install` e `npm run dev`.
-- `pnpm-lock.yaml`: use `pnpm install` e `pnpm dev`.
-- `yarn.lock`: use `yarn install` e `yarn dev`.
-- `bun.lockb` ou `bun.lock`: use `bun install` e `bun dev`.
-
-Nesta máquina, o `npm` local já existe em `.tools/node/bin/npm`. A falha atual de `npm run dev` é ausência de `package.json`, não ausência de npm.
-
-## Variáveis de ambiente
-
-Quando o app for exportado, procurar por:
-
-- `.env.example`
-- `.env.local`
-- chamadas a `process.env`
-- chamadas a `import.meta.env`
-- chaves de Gemini, Google AI ou Firebase
-
-Nunca versionar `.env` real. Criar ou atualizar `.env.example` com nomes de variáveis e valores fictícios.
+```bash
+npm run dev
+npm run build
+npm run preview
+npm run lint
+npm run clean
+```

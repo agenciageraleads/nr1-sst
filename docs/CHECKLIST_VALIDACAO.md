@@ -1,81 +1,62 @@
-# Checklist de validação
+# Checklist De Validacao
 
-Use este checklist quando o código real do app estiver nesta pasta.
+Use este checklist para validar o NR1-SST localmente.
 
-## Antes de rodar
+## Antes De Rodar
 
 - [x] `git --version` funciona.
 - [x] `source scripts/use-local-node.sh` funciona.
-- [x] `node --version` mostra `v24.15.0` ou outra versão LTS compatível.
+- [x] `node --version` mostra `v24.15.0`.
 - [x] `npm --version` funciona.
-- [ ] Existe `package.json`.
-- [ ] Existe script `dev` no `package.json`.
-- [ ] Variáveis de ambiente estão documentadas em `.env.example`.
-- [ ] `.env.local` ou `.env` real foi criado localmente, sem ser versionado.
+- [x] Existe `package.json`.
+- [x] Existe script `dev` no `package.json`.
+- [x] Variaveis de ambiente estao documentadas em `.env.example`.
+- [ ] `.env.local` foi criado localmente com valores reais.
 
-## Instalação
-
-Com `npm`:
+## Instalacao
 
 ```bash
+source scripts/use-local-node.sh
 npm install
 ```
 
-Com `pnpm`:
-
-```bash
-pnpm install
-```
-
-Com `yarn`:
-
-```bash
-yarn install
-```
-
 ## Desenvolvimento
-
-Com `npm`:
 
 ```bash
 source scripts/use-local-node.sh
 npm run dev
 ```
 
-Com `pnpm`:
+URL esperada:
 
-```bash
-pnpm dev
+```text
+http://localhost:3000
 ```
 
-Com `yarn`:
+## Build E Tipagem
 
 ```bash
-yarn dev
+npm run lint
+npm run build
 ```
 
-## Validação mínima
+## Validacao Minima
 
 - [ ] Servidor sobe sem erro.
 - [ ] URL local abre no navegador.
 - [ ] Tela inicial renderiza.
 - [ ] Fluxos principais funcionam.
-- [ ] Console do navegador não mostra erro crítico.
-- [ ] Build de produção passa, se houver script:
+- [ ] Console do navegador nao mostra erro critico.
+- [ ] `npm run lint` passa.
+- [ ] `npm run build` passa.
 
-```bash
-npm run build
-```
-
-ou equivalente no gerenciador usado.
-
-## Registro de problemas
+## Registro De Problemas
 
 Se algum comando falhar, registrar:
 
 - comando executado;
 - erro completo;
-- versão do Node;
+- versao do Node;
 - gerenciador de pacotes usado;
 - sistema operacional;
-- se as variáveis de ambiente já estavam configuradas.
+- variaveis de ambiente configuradas ou pendentes.

@@ -1,67 +1,72 @@
 # NR1-SST
 
-Projeto local para evoluir o app NR1-SST fora do Google AI Studio.
+Aplicacao NR1-SST exportada do Google AI Studio e preparada para desenvolvimento local com Codex.
 
 ## Estado atual
 
-O repositório remoto `https://github.com/agenciageraleads/nr1-sst.git`, consultado em 2026-05-11, possui apenas o `README.md` padrão gerado pelo AI Studio. Ainda não há código de aplicação, `package.json`, lockfile, configuração de build ou scripts de desenvolvimento publicados no GitHub.
+O codigo da aplicacao ja esta neste repositorio. O projeto usa React, Vite, TypeScript, Firebase, Tailwind CSS e Gemini.
 
-Por isso, esta pasta já foi preparada como base de trabalho local, mas o app em si ainda precisa ser exportado do Google AI Studio ou enviado para este repositório.
+App original no AI Studio:
+https://ai.studio/apps/79474dc1-a64f-4ec4-a0f7-4efbfb5388f7
 
-## O que já foi feito aqui
-
-- Repositório clonado/conectado em `/Users/mariatereza/Documents/NR1-SST`.
-- Documentação inicial criada em `docs/`.
-- Checklist de ambiente local e validação preparado.
-- `.gitignore` base criado para projetos Node/frontend.
-- Node.js LTS local instalado em `.tools/node` com `npm`.
-- Git local instalado em `~/.local/bin/git` e repositório conectado ao remoto `origin`.
-
-## Documentação
+## Documentacao
 
 - [Ambiente local](docs/AMBIENTE_LOCAL.md)
 - [Migração do Google AI Studio](docs/MIGRACAO_AI_STUDIO.md)
 - [Checklist de validação](docs/CHECKLIST_VALIDACAO.md)
 - [Registro de decisões](docs/DECISOES.md)
+- [Agentes Codex](docs/AGENTES_CODEX.md)
 
-## Como continuar
+## Rodar localmente
 
-1. Exportar o código real do Google AI Studio.
-2. Copiar os arquivos do app para esta pasta.
-3. Conferir o `package.json` e identificar o gerenciador de pacotes.
-4. Instalar dependências e rodar o script de desenvolvimento.
-
-Quando o código do app estiver aqui, o comando esperado normalmente será um destes:
+Use o Node local instalado neste projeto:
 
 ```bash
 source scripts/use-local-node.sh
 npm install
+```
+
+Configure as variaveis de ambiente:
+
+```bash
+cp .env.example .env.local
+```
+
+Edite `.env.local` e preencha a chave `GEMINI_API_KEY`.
+
+Depois rode:
+
+```bash
 npm run dev
 ```
 
-ou, caso o projeto use outro gerenciador:
+O Vite esta configurado para subir em:
 
-```bash
-pnpm install
-pnpm dev
+```text
+http://localhost:3000
 ```
 
-```bash
-yarn install
-yarn dev
-```
-
-## Bloqueios atuais para `run dev`
-
-Ainda não dá para rodar `npm run dev` porque:
-
-- não existe `package.json` neste repositório;
-- não existe script `dev` publicado;
-
-O Node local instalado para este projeto é `v24.15.0` com `npm 11.12.1`. Para usá-lo nesta pasta:
+## Scripts
 
 ```bash
-source scripts/use-local-node.sh
+npm run dev
+npm run build
+npm run preview
+npm run lint
+npm run clean
 ```
 
-Validação realizada: `.tools/node/bin/npm run dev` falha com `ENOENT` porque `/Users/mariatereza/Documents/NR1-SST/package.json` ainda não existe.
+## Stack
+
+- React 19
+- Vite 6
+- TypeScript
+- Firebase
+- Tailwind CSS 4
+- Gemini API
+
+## Observacoes
+
+- `.env.local` nao deve ser versionado.
+- `.tools/` contem o Node local e tambem nao deve ser versionado.
+- O repositorio local esta conectado ao remoto `origin`: `https://github.com/agenciageraleads/nr1-sst.git`.
