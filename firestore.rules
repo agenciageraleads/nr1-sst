@@ -1,0 +1,127 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helper Functions ---
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { 
+      return isSignedIn() && (
+        (request.auth.token.email == 'contato@venturatc.com.br' && request.auth.token.email_verified == true) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'admin')
+      );
+    }
+    function isAuthorized() {
+      return isSignedIn() && (
+        (request.auth.token.email == 'contato@venturatc.com.br' && request.auth.token.email_verified == true) ||
+        exists(/databases/$(database)/documents/users/$(request.auth.token.email))
+      );
+    }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // --- Validation Helpers ---
+    function isValidUser(data) {
+      return data.keys().hasAll(['name', 'email', 'role', 'createdAt']) &&
+             data.keys().size() == 4 &&
+             data.name is string && data.name.size() <= 100 &&
+             data.email is string && data.email.size() <= 100 &&
+             data.role in ['admin', 'editor'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidCompany(data) {
+      return data.keys().hasAll(['razaoSocial', 'cnpj', 'status', 'createdAt', 'cidade', 'uf', 'ramoAtividade', 'numeroColaboradores', 'responsavelNome', 'responsavelEmail']) &&
+             data.razaoSocial is string && data.razaoSocial.size() <= 250 &&
+             data.cnpj is string && data.cnpj.size() <= 25 &&
+             data.status in ['ativa', 'inativa'] &&
+             data.createdAt is timestamp &&
+             data.cidade is string &&
+             data.uf is string &&
+             data.ramoAtividade is string &&
+             data.responsavelNome is string &&
+             data.responsavelEmail is string;
+    }
+
+    function isValidCampaign(data) {
+      return data.keys().hasAll(['companyId', 'name', 'status', 'createdAt']) &&
+             data.companyId is string && data.companyId.size() <= 100 &&
+             data.name is string && data.name.size() <= 100 &&
+             data.status in ['rascunho', 'ativa', 'encerrada'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidCompanyResponse(data) {
+      return data.keys().hasAll(['campaignId', 'companyId', 'answers', 'submittedAt']) &&
+             data.campaignId is string && data.campaignId.size() <= 100 &&
+             data.companyId is string && data.companyId.size() <= 100 &&
+             data.answers is map &&
+             data.submittedAt is timestamp;
+    }
+
+    function isValidEmployeeResponse(data) {
+      return data.keys().hasAll(['campaignId', 'companyId', 'answers', 'submittedAt']) &&
+             data.campaignId is string && data.campaignId.size() <= 100 &&
+             data.companyId is string && data.companyId.size() <= 100 &&
+             data.answers is map &&
+             data.submittedAt is timestamp;
+    }
+
+    // --- Collection Routes ---
+
+    // Users
+    match /users/{userId} {
+      allow get: if isAuthorized() && (request.auth.token.email == userId || isAdmin());
+      allow list: if isAuthorized();
+      allow create: if isAdmin() && isValidUser(incoming());
+      allow update: if isAdmin() && isValidUser(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Companies
+    match /companies/{companyId} {
+      allow read: if isAuthorized();
+      allow create: if isAdmin() && isValidCompany(incoming());
+      allow update: if isAdmin() && isValidCompany(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Campaigns
+    match /campaigns/{campaignId} {
+      allow get: if isAuthorized() || (resource.data.status == 'ativa');
+      allow list: if isAuthorized() || (resource.data.status == 'ativa');
+      allow create: if isAdmin() && isValidCampaign(incoming());
+      allow update: if isAdmin() && isValidCampaign(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Company Responses
+    match /company_responses/{responseId} {
+      allow get: if isAuthorized();
+      allow list: if isAuthorized();
+      allow create: if (
+        // Public submission allowed if campaign is active
+        get(/databases/$(database)/documents/campaigns/$(incoming().campaignId)).data.status == 'ativa'
+      ) && isValidCompanyResponse(incoming());
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Employee Responses
+    match /employee_responses/{responseId} {
+      allow read: if isAuthorized();
+      allow list: if isAuthorized();
+      allow create: if (
+        // Public submission allowed if campaign is active
+        get(/databases/$(database)/documents/campaigns/$(incoming().campaignId)).data.status == 'ativa'
+      ) && isValidEmployeeResponse(incoming());
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}

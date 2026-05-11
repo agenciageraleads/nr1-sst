@@ -1,0 +1,108 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Administrator of the consultancy",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "editor"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "role"]
+    },
+    "Company": {
+      "title": "Company",
+      "description": "Client company",
+      "type": "object",
+      "properties": {
+        "razaoSocial": { "type": "string" },
+        "nomeFantasia": { "type": "string" },
+        "cnpj": { "type": "string" },
+        "cidade": { "type": "string" },
+        "uf": { "type": "string" },
+        "ramoAtividade": { "type": "string" },
+        "numeroColaboradores": { "type": "string" },
+        "responsavelNome": { "type": "string" },
+        "responsavelEmail": { "type": "string" },
+        "responsavelTelefone": { "type": "string" },
+        "status": { "type": "string", "enum": ["ativa", "inativa"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["razaoSocial", "cnpj", "status"]
+    },
+    "Campaign": {
+      "title": "Campaign",
+      "description": "Research campaign for a company",
+      "type": "object",
+      "properties": {
+        "companyId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["rascunho", "ativa", "encerrada"] },
+        "companyFormToken": { "type": "string" },
+        "employeeFormToken": { "type": "string" },
+        "employeeFormMode": { "type": "string", "enum": ["completo", "enxuto"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["companyId", "name", "status"]
+    },
+    "CompanyResponse": {
+      "title": "Company Response",
+      "description": "Response from the company representative",
+      "type": "object",
+      "properties": {
+        "campaignId": { "type": "string" },
+        "companyId": { "type": "string" },
+        "answers": { "type": "object" },
+        "submittedAt": { "type": "string", "format": "date-time" },
+        "submittedByName": { "type": "string" },
+        "submittedByEmail": { "type": "string" }
+      },
+      "required": ["campaignId", "companyId", "answers"]
+    },
+    "EmployeeResponse": {
+      "title": "Employee Response",
+      "description": "Anonymous response from an employee",
+      "type": "object",
+      "properties": {
+        "campaignId": { "type": "string" },
+        "companyId": { "type": "string" },
+        "sector": { "type": "string" },
+        "roleType": { "type": "string" },
+        "tenure": { "type": "string" },
+        "workType": { "type": "string" },
+        "workSchedule": { "type": "string" },
+        "answers": { "type": "object" },
+        "scores": { "type": "object" },
+        "submittedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["campaignId", "companyId", "answers"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/companies/{companyId}": {
+      "schema": "Company",
+      "description": "Registered companies"
+    },
+    "/campaigns/{campaignId}": {
+      "schema": "Campaign",
+      "description": "Research campaigns"
+    },
+    "/company_responses/{responseId}": {
+      "schema": "CompanyResponse",
+      "description": "Institutional responses"
+    },
+    "/employee_responses/{responseId}": {
+      "schema": "EmployeeResponse",
+      "description": "Anonymous employee responses"
+    }
+  }
+}
