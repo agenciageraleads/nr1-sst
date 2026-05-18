@@ -324,6 +324,36 @@ Campos importantes:
 - `employee_responses`: `campaign_id`, `company_id`, `sector`, `role_type`, `tenure`, `work_type`, `work_schedule`, `answers jsonb`, `scores jsonb`, `submitted_at`.
 - `users`: `email`, `name`, `role`, `created_at`.
 
+Campos adicionados depois do schema inicial:
+
+- `questionnaires` e `questionnaire_questions`: definem formulario, versao, pergunta, categoria, tipo, peso, inversao de risco, opcoes pontuadas, regra numerica e status.
+- `campaigns.company_questionnaire_id` e `campaigns.employee_questionnaire_id`: vinculam a campanha aos questionarios usados.
+- `company_responses.questionnaire_id`, `company_responses.questionnaire_version`, `company_responses.scores`.
+- `employee_responses.questionnaire_id`, `employee_responses.questionnaire_version`.
+- `report_settings`: venda publica, preco, parcelas e amostra minima anonima. O sistema deve tratar `min_employee_responses` com piso operacional de 5.
+- `public_diagnostics`, `payment_orders` e `report_download_audit`: fluxo de diagnostico publico, pagamento do PDF e auditoria de download.
+
+## Classificacao Dos Dados Historicos Para Relatorio
+
+Antes da fase 4, cada campanha importada da VPS deve ser classificada sem escrita no banco de origem:
+
+- `full_traceable`: possui empresa, campanha, respostas com `answers`, `scores`, `questionnaire_id` e snapshot das perguntas usadas no calculo. Gera relatorio completo com evidencias por pergunta.
+- `legacy_scores_only`: possui empresa, campanha e `employee_responses.scores` por categoria, mas sem questionario/metadados confiaveis. Gera relatorio util em modo legado agregado, com evidencias marcadas como "Evidencia agregada legada".
+- `insufficient_for_report`: nao possui `scores` nem metadados suficientes para recalculo. Deve ser preservada como amostra bruta, mas nao deve gerar risco, inventario ou plano de acao ate enriquecimento ou nova coleta.
+
+Observacao para microempresas: quando `numero_colaboradores` for menor que 5, a campanha nao deve ser tratada como pesquisa anonima coletiva. A importacao deve preservar respostas e scores, mas o relatorio operacional deve usar modo microempresa, com avaliacao institucional/tecnica e sem score por categoria derivado diretamente das respostas individuais.
+
+Plano read-only recomendado para a VPS:
+
+1. Exportar schema, contagens por tabela/colecao e chaves JSON presentes, sem alterar dados.
+2. Contar por campanha: respostas totais, respostas com `scores`, respostas com `answers`, categorias distintas, questionarios vinculados, segmentadores preenchidos e formulario institucional.
+3. Gerar manifesto local com contagens e hashes por campanha.
+4. Importar primeiro em staging, preservando IDs originais quando possivel.
+5. Validar totais antes/depois, amostra minima, categorias medias e classe de importacao.
+6. Rodar smokes locais de relatorio completo, PDF publico, amostra minima e legado por scores antes de qualquer cutover.
+
+Regra de preservacao: nao sobrescrever `answers`, `scores` ou questionarios historicos. Qualquer enriquecimento deve ser aditivo.
+
 Indices iniciais:
 
 - `companies(status)`
@@ -457,3 +487,36 @@ Pendencias antes de considerar cutover publico completo:
 - Trocar/remover a credencial admin inicial de desenvolvimento.
 - Configurar backup recorrente do banco `nr1_sst`.
 - Importar dados historicos do Firestore, se ainda forem necessarios.
+
+## Preflight Local Para Proxima Publicacao - 2026-05-17
+
+Validacoes executadas antes de preparar nova publicacao:
+
+- `tsc --noEmit`: passou.
+- `vite build`: passou com aviso de chunk grande do Vite.
+- `docker compose up -d --build api`: passou e `/health` local retornou `{"ok":true}`.
+- Build local da imagem web com `deploy/web/Dockerfile` e `VITE_API_URL=https://api-nr01.venturatc.com.br`: passou.
+- Smokes locais das fases 1, 2, 3, 3.5, legado, privacidade, amostra insuficiente, fase 4 e fase 5: passaram.
+- PDFs smoke pagos nao expuseram termos internos como prompt, schema, status de pagamento, ids tecnicos, payloads de IA ou dados crus.
+- Endpoints internos `/reports/:campaignId` nao retornaram `answers` ou `scores` por pessoa em `responses`.
+- Relatorio visual local validado sem secao de IA e sem textos de validacao/desenvolvimento.
+
+Achados de VPS em leitura:
+
+- Servicos atuais `nr1-sst_api` e `nr1-sst_web`: `1/1`.
+- `https://api-nr01.venturatc.com.br/health`: `200 {"ok":true}`.
+- `https://nr01.venturatc.com.br/health`: `200 ok`.
+- Stack atual da VPS ainda nao possui `API_PUBLIC_URL`, `MERCADO_PAGO_ACCESS_TOKEN`, `MERCADO_PAGO_WEBHOOK_SECRET` nem variaveis `REPORT_LLM_*` no servico API.
+- Ultimo backup local encontrado em `/opt/nr1-sst/backups`: `pre-nr1-globals-20260511-203644.sql`.
+
+Ajustes preparados no repositorio:
+
+- `deploy/swarm/nr1-sst-stack.yml` agora define `API_PUBLIC_URL=https://api-nr01.venturatc.com.br`.
+- `deploy/swarm/nr1-sst-stack.yml` passa as variaveis do Mercado Pago para a API.
+- `deploy/swarm/nr1-sst-stack.yml`, `.env.example` e `docker-compose.yml` deixam a camada de LLM desligada por padrao.
+
+Pendencias antes do deploy:
+
+- Criar backup novo do banco `nr1_sst` imediatamente antes da publicacao.
+- Garantir que `/opt/nr1-sst/.env` tenha `MERCADO_PAGO_ACCESS_TOKEN` e `MERCADO_PAGO_WEBHOOK_SECRET` quando venda publica/PDF pago estiver habilitado.
+- Versionar a publicacao com commit/push antes de atualizar a stack, conforme `docs/FLUXO_DE_TRABALHO.md`.

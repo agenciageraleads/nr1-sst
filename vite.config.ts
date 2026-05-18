@@ -17,6 +17,17 @@ export default defineConfig(() => {
     },
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
+      watch: {
+        ignored: [
+          '**/api/**',
+          '**/deploy/**',
+          '**/dist/**',
+          '**/docs/**',
+          '**/plugins/**',
+          '**/.agents/**',
+          '**/.tools/**',
+        ],
+      },
     },
   };
 });

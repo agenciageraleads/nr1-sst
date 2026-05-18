@@ -9,4 +9,5 @@ ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
 COPY package*.json ./
 COPY api ./api
+COPY shared ./shared
 CMD ["npx", "tsx", "api/server.ts"]

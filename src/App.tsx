@@ -15,8 +15,12 @@ import ResultsPage from './pages/ResultsPage';
 import ReportPage from './pages/ReportPage';
 import ReportsListPage from './pages/ReportsListPage';
 import SettingsPage from './pages/SettingsPage';
+import QuestionnairesPage from './pages/QuestionnairesPage';
 import CompanyForm from './pages/CompanyForm';
 import EmployeeForm from './pages/EmployeeForm';
+import PublicDiagnosticStartPage from './pages/PublicDiagnosticStartPage';
+import PublicDiagnosticDashboardPage from './pages/PublicDiagnosticDashboardPage';
+import PublicPaymentPage from './pages/PublicPaymentPage';
 import MainLayout from './components/layout/MainLayout';
 import { Loader2 } from 'lucide-react';
 
@@ -45,6 +49,9 @@ export default function App() {
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/diagnostico/novo" element={<PublicDiagnosticStartPage />} />
+        <Route path="/diagnostico/:token" element={<PublicDiagnosticDashboardPage />} />
+        <Route path="/diagnostico/:token/pagamento" element={<PublicPaymentPage />} />
         <Route path="/formulario/empresa/:token" element={<CompanyForm />} />
         <Route path="/formulario/colaborador/:token" element={<EmployeeForm />} />
 
@@ -85,6 +92,16 @@ export default function App() {
             <ProtectedRoute>
               <MainLayout>
                 <ResultsPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/questionarios"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <QuestionnairesPage />
               </MainLayout>
             </ProtectedRoute>
           }

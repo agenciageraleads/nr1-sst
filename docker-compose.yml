@@ -23,6 +23,14 @@ services:
       DATABASE_URL: postgres://nr1:nr1@postgres:5432/nr1_sst
       JWT_SECRET: dev-only-change-me
       APP_URL: http://localhost:3000
+      API_PUBLIC_URL: http://localhost:4000
+      MERCADO_PAGO_ACCESS_TOKEN:
+      MERCADO_PAGO_WEBHOOK_SECRET:
+      REPORT_LLM_ENABLED: "false"
+      REPORT_LLM_PROVIDER: disabled
+      REPORT_LLM_MODEL: not-configured
+      REPORT_LLM_PROMPT_VERSION: nr1-report-llm-v1
+      REPORT_LLM_REQUIRE_REVIEW: "true"
       ADMIN_EMAIL: admin@nr1.local
       ADMIN_PASSWORD: admin123
       PORT: 4000

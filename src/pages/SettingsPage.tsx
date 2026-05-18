@@ -15,7 +15,9 @@ import {
   User,
   LogOut,
   CheckCircle2,
-  X
+  X,
+  CreditCard,
+  Save
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -48,6 +50,14 @@ export default function SettingsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [reportSettings, setReportSettings] = useState({
+    publicSalesEnabled: true,
+    reportPriceCents: 49700,
+    maxInstallments: 12,
+    minEmployeeResponses: 5,
+  });
 
   const { user: currentUser } = useAuth();
 
@@ -62,6 +72,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetchUsers();
+    fetchReportSettings();
   }, []);
 
   const fetchUsers = async () => {
@@ -73,6 +84,41 @@ export default function SettingsPage() {
       console.error('Error fetching users:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchReportSettings = async () => {
+    setSettingsLoading(true);
+    try {
+      const { settings } = await api.reportSettings();
+      setReportSettings({
+        publicSalesEnabled: settings.publicSalesEnabled,
+        reportPriceCents: settings.reportPriceCents,
+        maxInstallments: settings.maxInstallments,
+        minEmployeeResponses: settings.minEmployeeResponses,
+      });
+    } catch (error) {
+      console.error('Error fetching report settings:', error);
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const saveReportSettings = async () => {
+    setSettingsSaving(true);
+    try {
+      const { settings } = await api.updateReportSettings(reportSettings);
+      setReportSettings({
+        publicSalesEnabled: settings.publicSalesEnabled,
+        reportPriceCents: settings.reportPriceCents,
+        maxInstallments: settings.maxInstallments,
+        minEmployeeResponses: settings.minEmployeeResponses,
+      });
+    } catch (error) {
+      console.error('Error saving report settings:', error);
+      alert('Erro ao salvar configurações do relatório. Verifique se seu acesso é de administrador.');
+    } finally {
+      setSettingsSaving(false);
     }
   };
 
@@ -229,6 +275,96 @@ export default function SettingsPage() {
             {temporaryPassword && (
               <div className="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-xl text-sm text-amber-800">
                 Senha temporária gerada: <code className="font-bold">{temporaryPassword}</code>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <CreditCard className="w-6 h-6 text-brand-600" /> Venda Pública do PDF
+                </h2>
+                <p className="text-sm text-slate-500 mt-1">Preço, parcelamento e trava de privacidade do relatório pago.</p>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border w-fit ${
+                reportSettings.publicSalesEnabled ? 'bg-brand-50 text-brand-700 border-brand-100' : 'bg-slate-50 text-slate-500 border-slate-200'
+              }`}>
+                {reportSettings.publicSalesEnabled ? 'Ativo' : 'Pausado'}
+              </span>
+            </div>
+
+            {settingsLoading ? (
+              <div className="h-32 bg-slate-50 animate-pulse rounded-2xl" />
+            ) : (
+              <div className="space-y-6">
+                <label className="flex items-center justify-between gap-4 p-4 border border-slate-100 rounded-2xl bg-slate-50/60">
+                  <span>
+                    <span className="block font-bold text-slate-900">Permitir checkout público</span>
+                    <span className="block text-xs text-slate-500 mt-1">Quando pausado, o diagnóstico continua gratuito, mas o pagamento do PDF fica indisponível.</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={reportSettings.publicSalesEnabled}
+                    onChange={(event) => setReportSettings((current) => ({ ...current, publicSalesEnabled: event.target.checked }))}
+                    className="w-5 h-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                  />
+                </label>
+
+                <div className="grid md:grid-cols-3 gap-4">
+                  <label className="space-y-2">
+                    <span className="text-sm font-bold text-slate-700">Preço do PDF (R$)</span>
+                    <input
+                      type="number"
+                      min="1"
+                      step="0.01"
+                      value={reportSettings.reportPriceCents / 100}
+                      onChange={(event) =>
+                        setReportSettings((current) => ({ ...current, reportPriceCents: Math.round(Number(event.target.value || 0) * 100) }))
+                      }
+                      className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-500 outline-none"
+                    />
+                  </label>
+                  <label className="space-y-2">
+                    <span className="text-sm font-bold text-slate-700">Parcelas máximas</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="12"
+                      value={reportSettings.maxInstallments}
+                      onChange={(event) =>
+                        setReportSettings((current) => ({ ...current, maxInstallments: Math.min(12, Math.max(1, Number(event.target.value || 1))) }))
+                      }
+                      className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-500 outline-none"
+                    />
+                  </label>
+                  <label className="space-y-2">
+                    <span className="text-sm font-bold text-slate-700">Mínimo anônimo</span>
+                    <input
+                      type="number"
+                      min="5"
+                      value={reportSettings.minEmployeeResponses}
+                      onChange={(event) =>
+                        setReportSettings((current) => ({ ...current, minEmployeeResponses: Math.max(5, Number(event.target.value || 5)) }))
+                      }
+                      className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-500 outline-none"
+                    />
+                  </label>
+                </div>
+
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4 border-t border-slate-100">
+                  <p className="text-xs text-slate-500 font-medium">
+                    Valor padrão do lançamento: R$ 497,00 em até 12x, com acréscimos do comprador no Mercado Pago.
+                  </p>
+                  <button
+                    onClick={saveReportSettings}
+                    disabled={settingsSaving || currentUser?.role !== 'admin'}
+                    className="bg-brand-600 hover:bg-brand-700 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {settingsSaving ? <CheckCircle2 className="w-5 h-5" /> : <Save className="w-5 h-5" />}
+                    Salvar
+                  </button>
+                </div>
               </div>
             )}
           </div>

@@ -5,7 +5,14 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { api, formatDateValue } from '../lib/api';
+import {
+  api,
+  formatDateValue,
+  type ResultsAnalysisPayload,
+  type ResultsCategoryAverage,
+  type ResultsEvidenceQuestion,
+  type ResultsSummary,
+} from '../lib/api';
 import { 
   BarChart3, 
   Users, 
@@ -14,10 +21,6 @@ import {
   ArrowLeft, 
   FileText, 
   Loader2,
-  TrendingDown,
-  TrendingUp,
-  Mail,
-  Building2,
   Calendar
 } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -30,20 +33,122 @@ import {
   Tooltip, 
   ResponsiveContainer,
   Cell,
-  PieChart,
-  Pie
 } from 'recharts';
 import { motion } from 'motion/react';
 import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 import { usePageTitle } from '../hooks/usePageTitle';
+
+type EvidenceDriver = {
+  label: string;
+  metric?: number;
+  responseCount?: number;
+};
+
+type EvidenceCategory = {
+  name: string;
+  risk?: number;
+  critical: boolean;
+  drivers: EvidenceDriver[];
+};
+
+function isRecord(value: unknown): value is Record<string, any> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function asNumber(value: unknown): number | undefined {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : undefined;
+}
+
+function questionLabel(question: ResultsEvidenceQuestion) {
+  return question.questionText || question.text || question.label || question.questionKey || question.questionId || '';
+}
+
+function questionMetric(question: ResultsEvidenceQuestion) {
+  return (
+    asNumber(question.impact) ??
+    asNumber(question.driverScore) ??
+    asNumber(question.risk) ??
+    asNumber(question.negativeShare) ??
+    asNumber(question.averageScore) ??
+    asNumber(question.score)
+  );
+}
+
+function questionSortMetric(question: ResultsEvidenceQuestion) {
+  return asNumber(question.impact) ?? asNumber(question.driverScore) ?? asNumber(question.risk) ?? asNumber(question.negativeShare);
+}
+
+function categoryDrivers(category: Record<string, any>) {
+  const drivers = category.topDrivers ?? category.drivers ?? category.questions ?? category.evidence;
+  return Array.isArray(drivers) ? drivers : [];
+}
+
+function normalizeEvidencePayload(payload?: ResultsAnalysisPayload): EvidenceCategory[] {
+  if (!payload) return [];
+
+  const source = payload as any;
+  let rawCategories: Array<Record<string, any> & { critical?: boolean }> = [];
+
+  if (Array.isArray(source)) {
+    rawCategories = source;
+  } else if (isRecord(source)) {
+    const nested = source.criticalCategories ?? source.categories ?? source.evidence ?? source.drivers ?? source.topDrivers;
+    const fromCriticalCategories = Array.isArray(source.criticalCategories);
+
+    if (Array.isArray(nested)) {
+      rawCategories = nested.map((category) => ({ ...category, critical: fromCriticalCategories }));
+    } else if (isRecord(nested)) {
+      rawCategories = Object.entries(nested).map(([name, drivers]) => ({
+        name,
+        topDrivers: Array.isArray(drivers) ? drivers : [],
+        critical: fromCriticalCategories,
+      }));
+    } else {
+      rawCategories = Object.entries(source)
+        .filter(([, drivers]) => Array.isArray(drivers))
+        .map(([name, drivers]) => ({ name, topDrivers: drivers }));
+    }
+  }
+
+  return rawCategories
+    .map((rawCategory) => {
+      const category = isRecord(rawCategory) ? rawCategory : {};
+      const name = String(category.category || category.name || '').trim();
+      const drivers = categoryDrivers(category)
+        .map((question: ResultsEvidenceQuestion, index: number) => ({
+          label: questionLabel(question).trim(),
+          metric: questionMetric(question),
+          sortMetric: questionSortMetric(question),
+          responseCount: asNumber(question.validResponseCount ?? question.responseCount ?? question.count),
+          originalIndex: index,
+        }))
+        .filter((question) => question.label)
+        .sort((a, b) => {
+          if (a.sortMetric == null && b.sortMetric == null) return a.originalIndex - b.originalIndex;
+          if (a.sortMetric == null) return 1;
+          if (b.sortMetric == null) return -1;
+          return b.sortMetric - a.sortMetric;
+        })
+        .slice(0, 3);
+
+      return {
+        name,
+        risk: asNumber(category.risk),
+        critical: Boolean(category.critical),
+        drivers,
+      };
+    })
+    .filter((category) => category.name && category.drivers.length);
+}
 
 export default function ResultsPage() {
   usePageTitle('VTC - Resultados em Tempo Real');
   const { id } = useParams();
   const [campaign, setCampaign] = useState<any>(null);
   const [responses, setResponses] = useState<any[]>([]);
+  const [summary, setSummary] = useState<ResultsSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,9 +156,10 @@ export default function ResultsPage() {
       if (!id) return;
       setLoading(true);
       try {
-        const { campaign, responses } = await api.results(id);
+        const { campaign, responses, summary, analysis, evidence } = await api.results(id);
         setCampaign(campaign);
         setResponses(responses);
+        setSummary({ ...(summary || {}), analysis: summary?.analysis ?? analysis, evidence: summary?.evidence ?? evidence });
       } catch (error) {
         console.error('Erro ao carregar resultados:', error);
       } finally {
@@ -88,9 +194,21 @@ export default function ResultsPage() {
     }));
   };
 
-  const catAverages = getCategoryAverages();
+  const catAverages: ResultsCategoryAverage[] = summary?.categoryAverages || getCategoryAverages();
   const mostCritical = [...catAverages].sort((a, b) => b.risk - a.risk)[0];
-  const totalResponses = responses.length;
+  const totalResponses = summary?.employeeResponsesCount ?? responses.length;
+  const riskByCategory = new Map(catAverages.map((category) => [category.name.toLocaleLowerCase('pt-BR'), category.risk]));
+  const evidenceCategories = [
+    ...normalizeEvidencePayload(summary?.analysis),
+    ...normalizeEvidencePayload(summary?.evidence),
+  ]
+    .filter((category, index, categories) => {
+      const risk = riskByCategory.get(category.name.toLocaleLowerCase('pt-BR')) ?? category.risk;
+      const isCritical = category.critical || (risk ?? 0) > 40;
+      const firstIndex = categories.findIndex((candidate) => candidate.name.toLocaleLowerCase('pt-BR') === category.name.toLocaleLowerCase('pt-BR'));
+      return isCritical && firstIndex === index;
+    })
+    .slice(0, 3);
 
   return (
     <div className="space-y-8">
@@ -171,6 +289,61 @@ export default function ResultsPage() {
            </div>
         </motion.div>
       </div>
+
+      {evidenceCategories.length > 0 && (
+        <section className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100">
+          <div className="flex items-start gap-4 mb-5">
+            <div className="bg-amber-100 text-amber-700 p-3 rounded-2xl">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-slate-900 tracking-tight">Por que deu esse risco?</h3>
+              <p className="text-sm text-slate-500 mt-1">Principais perguntas que puxaram as categorias críticas para cima.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {evidenceCategories.map((category) => {
+              const risk = riskByCategory.get(category.name.toLocaleLowerCase('pt-BR')) ?? category.risk;
+
+              return (
+                <div key={category.name} className="border border-slate-100 rounded-2xl p-4 bg-slate-50/60">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide leading-tight">{category.name}</h4>
+                    {risk != null && (
+                      <span className={cn(
+                        "shrink-0 rounded-full px-2 py-1 text-[11px] font-black",
+                        risk > 60 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
+                      )}>
+                        {Math.round(risk)}%
+                      </span>
+                    )}
+                  </div>
+                  <ol className="space-y-2">
+                    {category.drivers.map((driver, index) => (
+                      <li key={`${category.name}-${driver.label}`} className="flex gap-3 text-sm text-slate-700 leading-snug">
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white border border-slate-200 text-[11px] font-black text-slate-500">
+                          {index + 1}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="font-bold text-slate-800">{driver.label}</span>
+                          {(driver.metric != null || driver.responseCount != null) && (
+                            <span className="block text-xs text-slate-500 mt-1">
+                              {driver.metric != null ? `Indicador ${Math.round(driver.metric)}%` : ''}
+                              {driver.metric != null && driver.responseCount != null ? ' - ' : ''}
+                              {driver.responseCount != null ? `${driver.responseCount} respostas` : ''}
+                            </span>
+                          )}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Risk by Category Chart */}

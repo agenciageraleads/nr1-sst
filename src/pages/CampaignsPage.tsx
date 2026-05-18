@@ -4,14 +4,12 @@
  */
 
 import { useState, useEffect } from 'react';
-import { api, formatDateValue } from '../lib/api';
+import { api, formatDateValue, Questionnaire } from '../lib/api';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { 
   ClipboardList, 
   Plus, 
-  Copy, 
   Link as LinkIcon, 
-  ExternalLink,
   Loader2,
   X,
   CheckCircle2,
@@ -19,7 +17,8 @@ import {
   Calendar,
   Building2,
   Eye,
-  Users
+  Users,
+  Share2
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -37,6 +36,8 @@ const campaignSchema = z.object({
   startDate: z.string(),
   endDate: z.string(),
   employeeFormMode: z.enum(['completo', 'enxuto']),
+  companyQuestionnaireId: z.string().min(1, 'Formulário institucional obrigatório'),
+  employeeQuestionnaireId: z.string().min(1, 'Formulário de colaboradores obrigatório'),
   status: z.enum(['rascunho', 'ativa', 'encerrada']),
 });
 
@@ -48,20 +49,51 @@ export default function CampaignsPage() {
   const filterCompanyId = searchParams.get('companyId');
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
+  const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<CampaignFormValues>({
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<CampaignFormValues>({
     resolver: zodResolver(campaignSchema),
-    defaultValues: { status: 'ativa', employeeFormMode: 'completo' }
+    defaultValues: {
+      status: 'ativa',
+      employeeFormMode: 'completo',
+      companyQuestionnaireId: '',
+      employeeQuestionnaireId: '',
+      companyId: filterCompanyId || '',
+    }
   });
+
+  const selectedCompanyId = watch('companyId');
+  const selectedCompanyQuestionnaireId = watch('companyQuestionnaireId');
+  const selectedEmployeeQuestionnaireId = watch('employeeQuestionnaireId');
+
+  const questionnaireOptions = (formType: 'company' | 'employee') =>
+    questionnaires
+      .filter((questionnaire) =>
+        questionnaire.status === 'active' &&
+        questionnaire.formType === formType &&
+        (!questionnaire.companyId || questionnaire.companyId === selectedCompanyId)
+      )
+      .sort((a, b) => {
+        if (a.companyId && !b.companyId) return -1;
+        if (!a.companyId && b.companyId) return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+  const companyQuestionnaireOptions = questionnaireOptions('company');
+  const employeeQuestionnaireOptions = questionnaireOptions('employee');
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [{ campaigns }, { companies }] = await Promise.all([api.listCampaigns(), api.listCompanies()]);
+      const [{ campaigns }, { companies }, { questionnaires }] = await Promise.all([
+        api.listCampaigns(),
+        api.listCompanies(),
+        api.listQuestionnaires(),
+      ]);
       const activeCompanies = companies.filter((company) => company.status === 'ativa');
       const companiesData = activeCompanies.reduce((acc: any, company) => {
         acc[company.id] = company.razaoSocial;
@@ -69,6 +101,7 @@ export default function CampaignsPage() {
       }, {});
 
       setCompanies(activeCompanies);
+      setQuestionnaires(questionnaires);
 
       setCampaigns(campaigns.map((campaign) => ({
         companyName: companiesData[campaign.companyId] || 'Empresa Excluída',
@@ -84,6 +117,37 @@ export default function CampaignsPage() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!selectedCompanyId) {
+      setValue('companyQuestionnaireId', '');
+      setValue('employeeQuestionnaireId', '');
+      return;
+    }
+
+    if (companyQuestionnaireOptions.length && !companyQuestionnaireOptions.some((questionnaire) => questionnaire.id === selectedCompanyQuestionnaireId)) {
+      setValue('companyQuestionnaireId', companyQuestionnaireOptions[0].id, { shouldValidate: true });
+    }
+
+    if (employeeQuestionnaireOptions.length && !employeeQuestionnaireOptions.some((questionnaire) => questionnaire.id === selectedEmployeeQuestionnaireId)) {
+      setValue('employeeQuestionnaireId', employeeQuestionnaireOptions[0].id, { shouldValidate: true });
+    }
+  }, [selectedCompanyId, questionnaires, selectedCompanyQuestionnaireId, selectedEmployeeQuestionnaireId, setValue]);
+
+  const openCreateModal = () => {
+    reset({
+      companyId: filterCompanyId || '',
+      name: '',
+      description: '',
+      startDate: '',
+      endDate: '',
+      employeeFormMode: 'completo',
+      companyQuestionnaireId: '',
+      employeeQuestionnaireId: '',
+      status: 'ativa',
+    });
+    setIsModalOpen(true);
+  };
 
   const generateToken = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
@@ -101,7 +165,17 @@ export default function CampaignsPage() {
         endDate: data.endDate,
       });
       setIsModalOpen(false);
-      reset();
+      reset({
+        companyId: filterCompanyId || '',
+        name: '',
+        description: '',
+        startDate: '',
+        endDate: '',
+        employeeFormMode: 'completo',
+        companyQuestionnaireId: '',
+        employeeQuestionnaireId: '',
+        status: 'ativa',
+      });
       fetchData();
     } catch (error) {
       console.error('Erro ao criar campanha:', error);
@@ -110,11 +184,56 @@ export default function CampaignsPage() {
     }
   };
 
-  const copyToClipboard = (text: string, id: string) => {
-    const url = `${window.location.origin}${text}`;
-    navigator.clipboard.writeText(url);
+  const getFormUrl = (path: string) => `${window.location.origin}${path}`;
+
+  const showCopiedFeedback = (id: string) => {
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const copyToClipboard = async (text: string, id: string) => {
+    await navigator.clipboard.writeText(getFormUrl(text));
+    showCopiedFeedback(id);
+  };
+
+  const buildShareMessage = (campaign: any) => {
+    const companyFormUrl = getFormUrl(`/formulario/empresa/${campaign.companyFormToken}`);
+    const employeeFormUrl = getFormUrl(`/formulario/colaborador/${campaign.employeeFormToken}`);
+
+    return `*${campaign.name}*
+
+LINK EMPRESA: ${companyFormUrl}
+LINK COLABORADOR: ${employeeFormUrl}
+
+Ventura Consultoria
+Maria Tereza - Engenheira de Segurança do Trabalho`;
+  };
+
+  const shareCampaign = async (campaign: any) => {
+    const message = buildShareMessage(campaign);
+    const feedbackId = `share-${campaign.id}`;
+
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({
+          title: campaign.name,
+          text: message,
+        });
+      } else {
+        await navigator.clipboard.writeText(message);
+      }
+
+      showCopiedFeedback(feedbackId);
+    } catch (error: any) {
+      if (error?.name === 'AbortError') return;
+
+      try {
+        await navigator.clipboard.writeText(message);
+        showCopiedFeedback(feedbackId);
+      } catch (clipboardError) {
+        console.error('Erro ao compartilhar campanha:', clipboardError);
+      }
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -148,7 +267,7 @@ export default function CampaignsPage() {
             </button>
           )}
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={openCreateModal}
             className="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-brand-100"
           >
             <Plus className="w-5 h-5" /> Nova Campanha
@@ -201,6 +320,14 @@ export default function CampaignsPage() {
                     <span className="flex items-center gap-1.5 font-medium"><Building2 className="w-4 h-4 text-slate-400" /> {campaign.companyName}</span>
                     <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-slate-400" /> {formatDateValue(campaign.startDate) ? format(formatDateValue(campaign.startDate)!, "dd 'de' MMM", { locale: ptBR }) : '--'} - {formatDateValue(campaign.endDate) ? format(formatDateValue(campaign.endDate)!, "dd 'de' MMM", { locale: ptBR }) : '--'}</span>
                   </div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-wider">
+                    <span className="bg-slate-50 text-slate-500 border border-slate-100 px-2 py-1 rounded-full">
+                      Empresa: {campaign.companyQuestionnaireName || 'automático'}
+                    </span>
+                    <span className="bg-brand-50 text-brand-700 border border-brand-100 px-2 py-1 rounded-full">
+                      Colab.: {campaign.employeeQuestionnaireName || 'automático'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -219,6 +346,14 @@ export default function CampaignsPage() {
                    >
                      {copiedId === `colab-${campaign.id}` ? <CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> : <Users className="w-3.5 h-3.5" />}
                      Link Colab.
+                   </button>
+                   <button
+                    onClick={() => shareCampaign(campaign)}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-white rounded-lg text-xs font-bold text-slate-700 hover:text-brand-600 transition-all shadow-sm border border-slate-100"
+                    title="Compartilhar campanha"
+                   >
+                     {copiedId === `share-${campaign.id}` ? <CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> : <Share2 className="w-3.5 h-3.5" />}
+                     Compartilhar
                    </button>
                 </div>
 
@@ -298,6 +433,49 @@ export default function CampaignsPage() {
                         <span className="text-sm font-bold">Enxuto</span>
                       </label>
                     </div>
+                  </div>
+                  <div className="space-y-3 p-4 rounded-2xl border border-brand-100 bg-brand-50/40">
+                    <div>
+                      <p className="text-sm font-black text-slate-900">Formulários desta campanha</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Selecione os questionários cadastrados no motor. Formulários específicos da empresa aparecem antes dos padrões.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-slate-700">Formulário institucional</label>
+                      <select
+                        {...register('companyQuestionnaireId')}
+                        disabled={!selectedCompanyId || !companyQuestionnaireOptions.length}
+                        className="w-full p-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
+                      >
+                        <option value="">{selectedCompanyId ? 'Selecione o formulário...' : 'Selecione uma empresa primeiro'}</option>
+                        {companyQuestionnaireOptions.map((questionnaire) => (
+                          <option key={questionnaire.id} value={questionnaire.id}>
+                            {questionnaire.companyId ? 'Empresa - ' : 'Padrão - '}{questionnaire.name}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.companyQuestionnaireId && <p className="text-xs text-red-500 font-medium">{errors.companyQuestionnaireId.message}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-slate-700">Formulário dos colaboradores</label>
+                      <select
+                        {...register('employeeQuestionnaireId')}
+                        disabled={!selectedCompanyId || !employeeQuestionnaireOptions.length}
+                        className="w-full p-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
+                      >
+                        <option value="">{selectedCompanyId ? 'Selecione o formulário...' : 'Selecione uma empresa primeiro'}</option>
+                        {employeeQuestionnaireOptions.map((questionnaire) => (
+                          <option key={questionnaire.id} value={questionnaire.id}>
+                            {questionnaire.companyId ? 'Empresa - ' : 'Padrão - '}{questionnaire.name}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.employeeQuestionnaireId && <p className="text-xs text-red-500 font-medium">{errors.employeeQuestionnaireId.message}</p>}
+                    </div>
+                    {selectedCompanyId && (!companyQuestionnaireOptions.length || !employeeQuestionnaireOptions.length) && (
+                      <p className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-100 rounded-xl p-3">
+                        Cadastre ou ative os formulários em Questionários antes de abrir a campanha.
+                      </p>
+                    )}
                   </div>
                 </div>
 

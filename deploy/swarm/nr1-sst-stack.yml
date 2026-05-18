@@ -7,6 +7,14 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       JWT_SECRET: ${JWT_SECRET}
       APP_URL: https://nr01.venturatc.com.br
+      API_PUBLIC_URL: https://api-nr01.venturatc.com.br
+      MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN}
+      MERCADO_PAGO_WEBHOOK_SECRET: ${MERCADO_PAGO_WEBHOOK_SECRET}
+      REPORT_LLM_ENABLED: "false"
+      REPORT_LLM_PROVIDER: disabled
+      REPORT_LLM_MODEL: not-configured
+      REPORT_LLM_PROMPT_VERSION: nr1-report-llm-v1
+      REPORT_LLM_REQUIRE_REVIEW: "true"
       PORT: 4000
     networks:
       - Portainer

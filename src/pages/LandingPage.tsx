@@ -41,14 +41,14 @@ export default function LandingPage() {
           </h1>
           <p className="text-lg md:text-xl text-slate-600 max-w-3xl mx-auto mb-10 leading-relaxed font-medium">
             Atenda aos requisitos legais da NR-01 com a metodologia exclusiva da Ventura para identificar,
-            avaliar e mitigar riscos organizacionais e psicossociais no seu PGR.
+            avaliar e mitigar riscos organizacionais e psicossociais no seu PGR. Faça a coleta gratuitamente e baixe o PDF técnico após o pagamento único.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link 
-              to="/login"
+              to="/diagnostico/novo"
               className="bg-slate-900 hover:bg-slate-800 text-white px-8 py-4 rounded-xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all transform hover:scale-105 shadow-xl"
             >
-              Iniciar Diagnóstico <ArrowRight className="w-5 h-5" />
+              Iniciar Diagnóstico Gratuito <ArrowRight className="w-5 h-5" />
             </Link>
           </div>
         </motion.div>
@@ -101,10 +101,10 @@ export default function LandingPage() {
             Melhore o clima organizacional, reduza o absenteísmo e cumpra a legislação com a Ventura.
           </p>
           <Link 
-            to="/login"
+            to="/diagnostico/novo"
             className="bg-brand-600 text-white hover:bg-brand-700 px-10 py-5 rounded-xl font-black uppercase tracking-widest text-sm inline-block transition-all transform hover:scale-105 shadow-2xl shadow-brand-500/20"
           >
-            Acessar Plataforma
+            Começar Diagnóstico
           </Link>
         </div>
       </section>

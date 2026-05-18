@@ -5,20 +5,18 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { api } from '../lib/api';
-import { EMPLOYEE_QUESTIONS, SCALE_LABELS, FREQUENCY_LABELS } from '../constants/questions';
-import { 
-  Shield, 
-  CheckCircle2, 
-  ArrowRight, 
-  ArrowLeft, 
-  Loader2, 
-  AlertCircle 
+import { api, Questionnaire } from '../lib/api';
+import {
+  CheckCircle2,
+  ArrowRight,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { Logo } from '../components/ui/Logo';
+import { PublicQuestionField } from '../components/questionnaires/PublicQuestionField';
 import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function EmployeeForm() {
@@ -27,22 +25,24 @@ export default function EmployeeForm() {
   const navigate = useNavigate();
   const [campaign, setCampaign] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [step, setStep] = useState(0); // 0: Intro, 1: General Data, 2+: Questions, Final: Open Questions
+  const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [company, setCompany] = useState<any>(null);
+  const [questionnaire, setQuestionnaire] = useState<Questionnaire | null>(null);
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'auto' });
   }, [step]);
 
   useEffect(() => {
     const fetchCampaign = async () => {
       try {
-        const { campaign, company } = await api.publicEmployeeForm(token || '');
+        const { campaign, company, questionnaire } = await api.publicEmployeeForm(token || '');
         setCampaign(campaign);
         setCompany(company);
+        setQuestionnaire(questionnaire);
       } catch (error) {
         console.error(error);
       } finally {
@@ -75,67 +75,33 @@ export default function EmployeeForm() {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
   };
 
-  const calculateScores = (ans: Record<string, any>) => {
-    const categories = Array.from(new Set(EMPLOYEE_QUESTIONS.map(q => q.category)));
-    const scores: Record<string, number> = {};
-
-    categories.forEach(cat => {
-      const catQuestions = EMPLOYEE_QUESTIONS.filter(q => q.category === cat);
-      let total = 0;
-      let count = 0;
-
-      catQuestions.forEach(q => {
-        const val = ans[q.id];
-        if (val && val !== 6) { // 6 is "N/A" or "Prefer not to say"
-          let score = val;
-          if (q.isNegative) {
-            // For negative questions, 1 (Never) is 5 (Best), 5 (Always) is 1 (Worst)
-            score = 6 - val;
-          }
-          // Normalize to 0-100 scale where 100 is BEST (lowest risk)
-          // Wait, user wants: 1 = high risk, 5 = low risk for positive. 1 = low risk, 5 = high risk for negative.
-          // Let's stick to a score where 100 is best (zero risk).
-          // 1 -> 0, 2 -> 25, 3 -> 50, 4 -> 75, 5 -> 100
-          total += (score - 1) * 25;
-          count++;
-        }
-      });
-
-      if (count > 0) {
-        scores[cat] = Math.round(total / count);
-      }
-    });
-
-    return scores;
-  };
-
   const submitForm = async () => {
     setIsSubmitting(true);
     try {
-      const scores = calculateScores(answers);
       await api.submitEmployeeResponse({
         campaignId: campaign.id,
         companyId: campaign.companyId,
+        questionnaireId: questionnaire?.id,
         sector: answers['sector'] || 'Não Informado',
         roleType: answers['roleType'] || 'Não Informado',
         tenure: answers['tenure'] || 'Não Informado',
         workType: answers['workType'] || 'Não Informado',
         workSchedule: answers['workSchedule'] || 'Não Informado',
-        answers: answers,
-        scores: scores,
+        answers,
       });
       setSubmitted(true);
     } catch (error) {
       console.error('Erro ao enviar resposta do colaborador:', error);
+      alert('Não foi possível enviar. Confira se todas as perguntas obrigatórias foram respondidas.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Steps grouping
+  const questions = (questionnaire?.questions || []).filter((question) => question.active);
   const questionsPerStep = 5;
-  const totalQuestionSteps = Math.ceil(EMPLOYEE_QUESTIONS.length / questionsPerStep);
-  const totalSteps = 2 + totalQuestionSteps + 1; // Intro + General + Questions + Open
+  const totalQuestionSteps = Math.max(1, Math.ceil(questions.length / questionsPerStep));
+  const totalSteps = 2 + totalQuestionSteps;
 
   if (submitted) {
     return (
@@ -161,7 +127,6 @@ export default function EmployeeForm() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center py-12 px-4">
       <div className="w-full max-w-2xl bg-white rounded-3xl shadow-xl shadow-slate-200 border border-slate-100 overflow-hidden flex flex-col">
-        {/* Progress Header */}
         <div className="bg-slate-900 px-8 py-10 text-white text-center relative overflow-hidden">
           <div className="absolute bottom-0 left-0 h-1.5 bg-brand-500 transition-all duration-500 z-10" style={{ width: `${(step / (totalSteps - 1)) * 100}%` }} />
           <div className="flex flex-col items-center relative z-20">
@@ -175,7 +140,7 @@ export default function EmployeeForm() {
         <div className="flex-1 p-8 md:p-12">
           <AnimatePresence mode="wait">
             {step === 0 && (
-              <motion.div 
+              <motion.div
                 key="intro"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -196,7 +161,7 @@ export default function EmployeeForm() {
                    </div>
                    <span className="font-bold text-xs uppercase tracking-tight">Colaboradores da sua empresa estão participando.</span>
                 </div>
-                <button 
+                <button
                   onClick={() => setStep(1)}
                   className="w-full bg-brand-600 hover:bg-brand-700 text-white py-4 rounded-xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-brand-100 active:scale-95"
                 >
@@ -207,7 +172,7 @@ export default function EmployeeForm() {
             )}
 
             {step === 1 && (
-              <motion.div 
+              <motion.div
                 key="general"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -215,20 +180,20 @@ export default function EmployeeForm() {
                 className="space-y-6"
               >
                 <h3 className="text-xl font-bold text-slate-900 border-b border-slate-100 pb-4">Dados de Atividade</h3>
-                
+
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-700">Setor</label>
-                    <input 
-                      type="text" 
-                      placeholder="Ex: Logística, RH, Produção..." 
+                    <input
+                      type="text"
+                      placeholder="Ex: Logística, RH, Produção..."
                       className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500"
                       onChange={(e) => handleAnswer('sector', e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-700">Tempo de Empresa</label>
-                    <select 
+                    <select
                       className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500"
                       onChange={(e) => handleAnswer('tenure', e.target.value)}
                     >
@@ -249,92 +214,45 @@ export default function EmployeeForm() {
               </motion.div>
             )}
 
-            {step >= 2 && step < totalSteps - 1 && (
-              <motion.div 
+            {step >= 2 && step < totalSteps && (
+              <motion.div
                 key={`step-${step}`}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-8"
               >
-                {EMPLOYEE_QUESTIONS.slice((step - 2) * questionsPerStep, (step - 2 + 1) * questionsPerStep).map((q) => (
+                {questions.slice((step - 2) * questionsPerStep, (step - 1) * questionsPerStep).map((q, index) => (
                   <div key={q.id} className="space-y-4">
-                    <p className="text-lg font-bold text-slate-800 leading-snug">{q.id}. {q.text}</p>
-                    <div className="grid grid-cols-1 gap-2">
-                      {Object.entries(q.type === 'scale' ? SCALE_LABELS : FREQUENCY_LABELS).map(([val, label]) => (
-                        <button
-                          key={val}
-                          onClick={() => handleAnswer(q.id.toString(), parseInt(val))}
-                          className={cn(
-                            "flex items-center justify-between p-3.5 rounded-xl border text-sm font-medium transition-all text-left",
-                            answers[q.id.toString()] === parseInt(val)
-                              ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100"
-                              : "bg-white border-slate-200 text-slate-600 hover:border-blue-400 hover:bg-blue-50/30"
-                          )}
-                        >
-                          {label}
-                          {answers[q.id.toString()] === parseInt(val) && <CheckCircle2 className="w-4 h-4 ml-2" />}
-                        </button>
-                      ))}
-                    </div>
+                    <p className="text-lg font-bold text-slate-800 leading-snug">
+                      {(step - 2) * questionsPerStep + index + 1}. {q.text}
+                      {q.required && <span className="text-red-500 ml-1">*</span>}
+                    </p>
+                    {q.description && <p className="text-sm text-slate-500">{q.description}</p>}
+                    <PublicQuestionField question={q} value={answers[q.questionKey]} onChange={(value) => handleAnswer(q.questionKey, value)} />
                   </div>
                 ))}
 
                 <div className="flex gap-4 pt-6">
                   <button onClick={() => setStep(step - 1)} className="flex-1 py-4 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-all">Voltar</button>
-                  <button 
-                    onClick={() => setStep(step + 1)} 
-                    className="flex-1 bg-blue-600 text-white py-4 font-bold rounded-xl shadow-lg shadow-blue-100 flex items-center justify-center gap-2"
-                  >
-                    Próximo <ArrowRight className="w-5 h-5"/>
-                  </button>
-                </div>
-              </motion.div>
-            )}
-
-            {step === totalSteps - 1 && (
-              <motion.div 
-                key="open"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-8"
-              >
-                <div className="space-y-6">
-                  <h3 className="text-xl font-bold text-slate-900">Percepção Final</h3>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">O que poderia melhorar no ambiente de trabalho?</label>
-                    <textarea 
-                      rows={4}
-                      className="w-full p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500"
-                      onChange={(e) => handleAnswer('suggestions', e.target.value)}
-                      placeholder="Sua opinião é importante..."
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">Em uma escala de 0 a 10, o quanto o ambiente é saudável?</label>
-                    <input 
-                      type="range" min="0" max="10" step="1" 
-                      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                      onChange={(e) => handleAnswer('healthScore', parseInt(e.target.value))}
-                    />
-                    <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      <span>Nada Saudável</span>
-                      <span className="text-blue-600 text-base">{answers['healthScore'] || 0}</span>
-                      <span>Muito Saudável</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-4 pt-6">
-                  <button onClick={() => setStep(step - 1)} className="flex-1 py-4 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-all">Voltar</button>
-                  <button 
-                    onClick={submitForm}
+                  <button
+                    onClick={step === totalSteps - 1 ? submitForm : () => setStep(step + 1)}
                     disabled={isSubmitting}
-                    className="flex-1 bg-green-600 text-white py-4 font-bold rounded-xl shadow-lg shadow-green-100 flex items-center justify-center gap-2 disabled:opacity-50"
+                    className={cn(
+                      'flex-1 text-white py-4 font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-50',
+                      step === totalSteps - 1 ? 'bg-green-600 shadow-green-100' : 'bg-blue-600 shadow-blue-100'
+                    )}
                   >
-                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                    Finalizar Pesquisa
+                    {step === totalSteps - 1 ? (
+                      <>
+                        {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                        Finalizar Pesquisa
+                      </>
+                    ) : (
+                      <>
+                        Próximo <ArrowRight className="w-5 h-5"/>
+                      </>
+                    )}
                   </button>
                 </div>
               </motion.div>

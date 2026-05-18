@@ -11,6 +11,7 @@ import {
   LayoutDashboard, 
   Building2, 
   ClipboardList, 
+  ListChecks,
   BarChart3, 
   FileText, 
   Settings, 
@@ -29,6 +30,7 @@ const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
   { icon: Building2, label: 'Empresas', path: '/empresas' },
   { icon: ClipboardList, label: 'Campanhas', path: '/campanhas' },
+  { icon: ListChecks, label: 'Questionários', path: '/questionarios' },
   { icon: FileText, label: 'Relatórios', path: '/relatorios' },
   { icon: Settings, label: 'Configurações', path: '/configuracoes' },
 ];
