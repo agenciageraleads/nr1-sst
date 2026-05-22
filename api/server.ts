@@ -1438,12 +1438,14 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
       if (doc.y + height > pageBottom()) doc.addPage();
     };
     const sectionTitle = (title: string) => {
-      ensureSpace(54);
-      doc.moveDown(1.2);
-      doc.font('Helvetica-Bold').fontSize(14).fillColor('#0f172a').text(title);
-      doc.moveDown(0.4);
-      doc.moveTo(doc.x, doc.y).lineTo(doc.page.width - doc.page.margins.right, doc.y).strokeColor('#16a34a').lineWidth(1).stroke();
-      doc.moveDown(0.8);
+      ensureSpace(34);
+      doc.moveDown(0.9);
+      const x = doc.page.margins.left;
+      const y = doc.y;
+      const width = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+      doc.rect(x, y, width, 18).fill('#ebebeb');
+      doc.font('Helvetica-Bold').fontSize(12).fillColor('#343434').text(title.toUpperCase(), x + 5, y + 4, { width: width - 10 });
+      doc.y = y + 25;
     };
     const labelValue = (label: string, value: string) => {
       doc.font('Helvetica-Bold').fontSize(8).fillColor('#64748b').text(label.toUpperCase());
@@ -1456,13 +1458,24 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
       const cleanItems = items.filter(Boolean).slice(0, 3);
       return cleanItems.length ? cleanItems.join('; ') : fallback;
     };
+    const shortText = (value = '', max = 82) => {
+      const text = String(value || '').replace(/\s+/g, ' ').replace(/\.$/, '').trim();
+      return text.length > max ? `${text.slice(0, max - 1).trim()}...` : text;
+    };
+    const sentenceCase = (value = '') => value ? `${value.charAt(0).toLocaleUpperCase('pt-BR')}${value.slice(1)}` : value;
+    const monthLabels = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+    const actionMonths = Array.from({ length: 12 }, (_, index) => {
+      const date = new Date();
+      date.setMonth(date.getMonth() + index);
+      return { label: monthLabels[date.getMonth()], year: date.getFullYear() };
+    });
 
-    doc.rect(0, 0, doc.page.width, 112).fill('#0f172a');
-    doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(24).text('Diagnostico Estrategico NR-01', 48, 38);
-    doc.fontSize(10).fillColor('#bbf7d0').text('Inventario de Riscos Psicossociais para subsidio do PGR', 48, 70);
-    doc.fontSize(9).fillColor('#cbd5e1').text('Documento tecnico complementar ao PGR', 48, 88);
-
-    doc.y = 142;
+    doc.font('Helvetica').fontSize(10).fillColor('#000').text('Relatorio Tecnico NR-01', 0, 28, { align: 'center' });
+    doc.font('Helvetica-Bold').fontSize(14).fillColor('#343434').text('Anexo Tecnico - Inventario de Riscos Psicossociais', 48, 70, {
+      align: 'center',
+      width: doc.page.width - 96,
+    });
+    doc.y = 112;
     sectionTitle('1. Identificacao do Estabelecimento');
     labelValue('Razao social', data.company.razaoSocial);
     labelValue('CNPJ', data.company.cnpj);
@@ -1523,7 +1536,7 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
     } else {
       const segmentations = (data.stats.segmentations || []).filter((item: any) => item.visibleGroups > 0 || item.hiddenGroups > 0);
       if (!segmentations.length) {
-        doc.font('Helvetica').fontSize(10).fillColor('#475569').text('Nenhum recorte atingiu a regra de anonimato para exibicao.');
+        doc.font('Helvetica').fontSize(10).fillColor('#475569').text('Nenhum recorte disponivel nas respostas da campanha.');
       } else {
         segmentations.forEach((segmentation: any) => {
           ensureSpace(44);
@@ -1547,7 +1560,7 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
       }
     }
 
-    sectionTitle('6. Plano de Acao 5W2H');
+    sectionTitle('6. Cronograma de Acao');
     const criticalItems = data.stats.categoryAverages.filter((category) => category.risk > 40);
     if (!data.stats.minimumResponsesMet) {
       doc.font('Helvetica').fontSize(10).fillColor('#475569').text(
@@ -1559,37 +1572,51 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
         'Recomenda-se manter boas praticas, monitorar indicadores periodicamente e registrar evidencias de acoes preventivas no PGR.'
       );
     } else {
+      doc.font('Helvetica').fontSize(10).fillColor('#334155').text(
+        'As datas de execucao devem ser definidas em conjunto com a empresa apos a apresentacao dos resultados.',
+        { align: 'justify', lineGap: 2 }
+      );
+      doc.moveDown(0.8);
+
+      const drawActionHeader = () => {
+        const x = doc.page.margins.left;
+        const y = doc.y;
+        const problemWidth = 118;
+        const actionWidth = 128;
+        const monthWidth = (doc.page.width - doc.page.margins.left - doc.page.margins.right - problemWidth - actionWidth) / 12;
+        doc.rect(x, y, problemWidth, 31).fillAndStroke('#d9d9d9', '#8f8f8f');
+        doc.rect(x + problemWidth, y, actionWidth, 31).fillAndStroke('#d9d9d9', '#8f8f8f');
+        doc.font('Helvetica-Bold').fontSize(7).fillColor('#343434').text('Problema encontrado', x + 4, y + 10, { width: problemWidth - 8, align: 'center' });
+        doc.text('Acao sugerida', x + problemWidth + 4, y + 10, { width: actionWidth - 8, align: 'center' });
+        actionMonths.forEach((month, index) => {
+          const cellX = x + problemWidth + actionWidth + index * monthWidth;
+          doc.rect(cellX, y, monthWidth, 31).fillAndStroke('#d9d9d9', '#8f8f8f');
+          doc.text(`${month.label}\n${month.year}`, cellX + 1, y + 7, { width: monthWidth - 2, align: 'center' });
+        });
+        doc.y = y + 31;
+        return { problemWidth, actionWidth, monthWidth };
+      };
+
+      let widths = drawActionHeader();
       criticalItems.forEach((item) => {
         const recommendation: any = recommendationsByCategory.get(normalizeRiskKey(item.name));
-        ensureSpace(178);
-        doc.font('Helvetica-Bold').fontSize(11).fillColor('#0f172a').text(`${item.name} - ${item.risk}% de risco${recommendation?.priority ? ` - ${recommendation.priority}` : ''}`);
-        doc.moveDown(0.4);
-        const actions = [
-          ['What', recommendation?.what || 'Programa de monitoramento e revisao dos processos relacionados ao fator critico.'],
-          ['Why', recommendation?.why || 'Reduzir exposicao coletiva e prevenir agravos psicossociais ocupacionais.'],
-          ['Where', recommendation?.where || 'Setores com maior exposicao e areas com recorrencia de sinais do fator critico.'],
-          ['When', recommendation?.when || 'Inicio em ate 15 dias, com reavaliacao em 90 dias.'],
-          ['Who', recommendation?.who || 'SESMT, liderancas, RH e consultoria tecnica.'],
-          ['How', recommendation?.how || 'Escuta ativa, oficinas, ajuste de metas, comunicacao e acompanhamento de indicadores.'],
-          ['How much', 'Recursos internos e horas tecnicas conforme plano de SST.'],
-        ];
-        actions.forEach(([label, value]) => {
-          doc.font('Helvetica-Bold').fontSize(8).fillColor('#16a34a').text(`${label}: `, { continued: true });
-          doc.font('Helvetica').fontSize(8).fillColor('#334155').text(value);
+        if (doc.y + 38 > pageBottom()) {
+          doc.addPage();
+          widths = drawActionHeader();
+        }
+        const x = doc.page.margins.left;
+        const y = doc.y;
+        const problem = `${item.name}: risco ${item.risk}%`;
+        const action = sentenceCase(shortText(recommendation?.what || 'Definir acao preventiva para o fator identificado', 70));
+        doc.rect(x, y, widths.problemWidth, 38).stroke('#8f8f8f');
+        doc.rect(x + widths.problemWidth, y, widths.actionWidth, 38).stroke('#8f8f8f');
+        doc.font('Helvetica-Bold').fontSize(7).fillColor('#343434').text(shortText(problem, 74), x + 4, y + 8, { width: widths.problemWidth - 8 });
+        doc.text(action, x + widths.problemWidth + 4, y + 8, { width: widths.actionWidth - 8 });
+        actionMonths.forEach((_, index) => {
+          const cellX = x + widths.problemWidth + widths.actionWidth + index * widths.monthWidth;
+          doc.rect(cellX, y, widths.monthWidth, 38).stroke('#8f8f8f');
         });
-        if (recommendation?.evidenceLabels?.length) {
-          doc.font('Helvetica-Bold').fontSize(8).fillColor('#16a34a').text('Evidencias: ', { continued: true });
-          doc.font('Helvetica').fontSize(8).fillColor('#334155').text(bulletText(recommendation.evidenceLabels));
-        }
-        if (recommendation?.followUpIndicators?.length) {
-          doc.font('Helvetica-Bold').fontSize(8).fillColor('#16a34a').text('Indicadores: ', { continued: true });
-          doc.font('Helvetica').fontSize(8).fillColor('#334155').text(bulletText(recommendation.followUpIndicators));
-        }
-        if (recommendation?.rule) {
-          doc.font('Helvetica-Bold').fontSize(8).fillColor('#16a34a').text('Regra: ', { continued: true });
-          doc.font('Helvetica').fontSize(8).fillColor('#334155').text(recommendation.rule);
-        }
-        doc.moveDown(0.8);
+        doc.y = y + 38;
       });
     }
 
@@ -1601,8 +1628,8 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
     doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a').text('Consultoria Tecnica - Ventura', 70, signatureY + 8, { width: 175, align: 'center' });
     doc.text('Representante da Empresa', 340, signatureY + 8, { width: 175, align: 'center' });
 
-    doc.font('Helvetica').fontSize(7).fillColor('#94a3b8').text(
-      `Documento estrategico para subsidio do PGR (NR-01). Gerado em ${new Date().toLocaleString('pt-BR')}.`,
+    doc.font('Helvetica').fontSize(8).fillColor('#343434').text(
+      'Documento tecnico complementar ao PGR',
       48,
       doc.page.height - 58,
       { align: 'center', width: doc.page.width - 96 }

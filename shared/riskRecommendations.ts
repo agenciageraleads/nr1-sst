@@ -59,7 +59,7 @@ type RecommendationTemplate = {
 const DEFAULT_TEMPLATE: RecommendationTemplate = {
   aliases: [],
   what: 'Definir e executar ação preventiva específica para a categoria avaliada.',
-  where: 'Setores, funções ou grupos expostos identificados na campanha, preservando anonimato e amostra mínima.',
+  where: 'Setores, funções ou grupos expostos identificados com as respostas disponíveis na campanha.',
   who: 'Responsável técnico de SST, RH, liderança da área e direção.',
   how: [
     'Validar o achado com responsável técnico',

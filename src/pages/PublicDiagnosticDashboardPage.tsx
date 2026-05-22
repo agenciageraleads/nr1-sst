@@ -139,8 +139,8 @@ export default function PublicDiagnosticDashboardPage() {
           </div>
           <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
             <BarChart3 className={cn('w-6 h-6 mb-3', stats.minimumResponsesMet ? 'text-brand-600' : 'text-slate-400')} />
-            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Amostra mínima</p>
-            <p className="text-lg font-black text-slate-900">{stats.minimumResponsesMet ? 'Atingida' : `Mín. ${diagnostic.settings.minEmployeeResponses}`}</p>
+            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Coleta</p>
+            <p className="text-lg font-black text-slate-900">{stats.minimumResponsesMet ? 'Disponível' : 'Aguardando'}</p>
           </div>
           <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
             <CheckCircle2 className={cn('w-6 h-6 mb-3', basicResultReady ? 'text-brand-600' : 'text-slate-400')} />
@@ -189,7 +189,7 @@ export default function PublicDiagnosticDashboardPage() {
                 <div>
                   <h2 className="text-xl font-black text-slate-900">Relatório completo para o PGR</h2>
                   <p className="text-sm text-slate-500 mt-1">
-                    Seu resultado básico já está disponível. O PDF completo inclui consolidação técnica, metodologia e plano de ação 5W2H.
+                    Seu resultado básico já está disponível. O PDF completo inclui consolidação técnica, metodologia e cronograma de ação.
                   </p>
                 </div>
 
@@ -236,8 +236,8 @@ export default function PublicDiagnosticDashboardPage() {
                       <p className="font-black text-slate-900">Coletar respostas dos colaboradores</p>
                       <p className="text-xs text-slate-500 mt-1">
                         {stats.minimumResponsesMet
-                          ? 'Amostra mínima atingida.'
-                          : `Faltam ${Math.max(0, diagnostic.settings.minEmployeeResponses - (stats.employeeResponsesCount || 0))} resposta(s) para preservar o anonimato.`}
+                          ? 'Coleta disponível para cálculo.'
+                          : 'Colete ao menos uma resposta de colaborador para liberar o cálculo.'}
                       </p>
                     </div>
                   </div>
@@ -253,7 +253,7 @@ export default function PublicDiagnosticDashboardPage() {
             <div className="bg-amber-50 border border-amber-100 rounded-xl p-5 text-amber-900">
               <p className="font-black">O resultado básico aparecerá aqui quando a coleta estiver completa.</p>
               <p className="text-sm font-medium mt-1">
-                Para preservar anonimato e cruzar os dados institucionais, precisamos do formulário da empresa e de pelo menos {diagnostic.settings.minEmployeeResponses} respostas de colaboradores.
+                Para cruzar os dados institucionais, precisamos do formulário da empresa e de ao menos uma resposta de colaborador.
               </p>
             </div>
           ) : (
