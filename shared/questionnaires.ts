@@ -146,6 +146,81 @@ export const DEFAULT_EMPLOYEE_QUESTIONS: QuestionnaireQuestionSeed[] = [
   },
 ];
 
+export const DEFAULT_EMPLOYEE_V2_QUESTIONS: QuestionnaireQuestionSeed[] = [
+  employee(1, 'Já presenciei situações repetidas de humilhação, constrangimento, gritos ou exposição no trabalho.', 'Assédio de qualquer natureza', 'frequency', true),
+  employee(2, 'Já presenciei ou sofri comentários, insinuações ou condutas de teor sexual indesejado no trabalho.', 'Assédio de qualquer natureza', 'frequency', true),
+  employee(3, 'Já vivenciei cobranças abusivas, ameaças de punição ou práticas organizacionais que constrangem as pessoas.', 'Assédio de qualquer natureza', 'frequency', true),
+  employee(4, 'Sinto segurança e confiança para relatar situações de assédio, discriminação ou desrespeito.', 'Assédio de qualquer natureza'),
+
+  employee(5, 'As mudanças organizacionais são comunicadas com antecedência suficiente.', 'Má gestão de mudanças organizacionais'),
+  employee(6, 'Quando há mudanças, entendo os motivos e impactos esperados no meu trabalho.', 'Má gestão de mudanças organizacionais'),
+  employee(7, 'Recebo orientação e apoio adequados durante mudanças de processo, equipe ou prioridade.', 'Má gestão de mudanças organizacionais'),
+  employee(8, 'Tenho oportunidade de esclarecer dúvidas ou contribuir antes de mudanças que afetam meu trabalho.', 'Má gestão de mudanças organizacionais'),
+
+  employee(9, 'Sei exatamente o que é esperado de mim no trabalho.', 'Baixa clareza de papel ou função'),
+  employee(10, 'Minhas responsabilidades e limites de atuação são claros.', 'Baixa clareza de papel ou função'),
+  employee(11, 'Recebo prioridades claras quando existem várias demandas ao mesmo tempo.', 'Baixa clareza de papel ou função'),
+  employee(12, 'Raramente sou cobrado por tarefas que não fazem parte da minha função.', 'Baixa clareza de papel ou função'),
+
+  employee(13, 'Sinto que meu trabalho é reconhecido pela empresa ou liderança.', 'Baixas recompensas e reconhecimento'),
+  employee(14, 'Recebo feedback positivo ou retorno construtivo quando realizo um bom trabalho.', 'Baixas recompensas e reconhecimento'),
+  employee(15, 'Existe equilíbrio entre cobrança por resultados e valorização do esforço realizado.', 'Baixas recompensas e reconhecimento'),
+  employee(16, 'Percebo oportunidades justas de crescimento, aprendizagem ou desenvolvimento.', 'Baixas recompensas e reconhecimento'),
+
+  employee(17, 'Recebo apoio da liderança quando tenho dificuldades no trabalho.', 'Falta de suporte ou apoio no trabalho'),
+  employee(18, 'Posso contar com colegas para cooperação quando preciso.', 'Falta de suporte ou apoio no trabalho'),
+  employee(19, 'Recebo orientação suficiente para resolver dúvidas ou problemas da minha atividade.', 'Falta de suporte ou apoio no trabalho'),
+  employee(20, 'Tenho recursos, ferramentas e informações suficientes para executar meu trabalho.', 'Falta de suporte ou apoio no trabalho'),
+
+  employee(21, 'Tenho autonomia adequada para decidir como executar minhas tarefas.', 'Baixo controle no trabalho ou falta de autonomia'),
+  employee(22, 'Consigo organizar minha rotina de trabalho dentro das prioridades definidas.', 'Baixo controle no trabalho ou falta de autonomia'),
+  employee(23, 'Tenho possibilidade de influenciar decisões que afetam diretamente minhas atividades.', 'Baixo controle no trabalho ou falta de autonomia'),
+  employee(24, 'Minhas sugestões de melhoria sobre o próprio trabalho são consideradas.', 'Baixo controle no trabalho ou falta de autonomia'),
+
+  employee(25, 'Já fui exposto a ameaças, agressões físicas ou risco de violência durante o trabalho.', 'Eventos violentos ou traumáticos', 'frequency', true),
+  employee(26, 'Já passei por situações de perigo grave, acidente ou quase acidente no trabalho.', 'Eventos violentos ou traumáticos', 'frequency', true),
+  employee(27, 'Já vivenciei ou presenciei evento traumático relacionado ao trabalho.', 'Eventos violentos ou traumáticos', 'frequency', true),
+  employee(28, 'Quando ocorre situação grave, a empresa oferece acolhimento, orientação e medidas de proteção.', 'Eventos violentos ou traumáticos'),
+
+  employee(29, 'As regras da empresa são aplicadas de forma justa e imparcial.', 'Baixa justiça organizacional'),
+  employee(30, 'A distribuição de tarefas e responsabilidades é feita de maneira equilibrada.', 'Baixa justiça organizacional'),
+  employee(31, 'Promoções, oportunidades e benefícios seguem critérios transparentes.', 'Baixa justiça organizacional'),
+  employee(32, 'Conflitos, erros ou punições são tratados com imparcialidade.', 'Baixa justiça organizacional'),
+
+  employee(33, 'Raramente sou pressionado a agir contra meus princípios éticos ou morais.', 'Conflito de valores no trabalho'),
+  employee(34, 'Consigo realizar meu trabalho sem entrar em conflito com meus valores pessoais.', 'Conflito de valores no trabalho'),
+  employee(35, 'Percebo coerência entre o que a empresa declara e o que pratica no dia a dia.', 'Conflito de valores no trabalho'),
+  employee(36, 'Sinto segurança para recusar ou questionar condutas que considero inadequadas.', 'Conflito de valores no trabalho'),
+
+  employee(37, 'Existem tensões ou conflitos recorrentes com colegas, lideranças ou clientes.', 'Conflitos interpessoais', 'frequency', true),
+  employee(38, 'O ambiente entre as pessoas é respeitoso.', 'Conflitos interpessoais'),
+  employee(39, 'A liderança age para mediar conflitos antes que se agravem.', 'Conflitos interpessoais'),
+  employee(40, 'Existe cooperação e respeito entre setores ou áreas diferentes.', 'Conflitos interpessoais'),
+
+  employee(41, 'Consigo finalizar minhas tarefas sem precisar fazer horas extras com frequência.', 'Jornada de trabalho inadequada ou extensiva'),
+  employee(42, 'Tenho pausas suficientes durante a jornada.', 'Jornada de trabalho inadequada ou extensiva'),
+  employee(43, 'Ao final da jornada, normalmente me sinto em condições adequadas para descansar.', 'Jornada de trabalho inadequada ou extensiva'),
+  employee(44, 'Tenho conseguido manter equilíbrio entre trabalho e vida pessoal.', 'Jornada de trabalho inadequada ou extensiva'),
+
+  employee(45, 'Tenho volume de trabalho excessivo para o tempo disponível.', 'Alta demanda de trabalho ou sobrecarga psicológica', 'frequency', true),
+  employee(46, 'Trabalho sob ritmo muito acelerado ou pressão intensa de tempo.', 'Alta demanda de trabalho ou sobrecarga psicológica', 'frequency', true),
+  employee(47, 'As metas ou cobranças do meu trabalho são realistas.', 'Alta demanda de trabalho ou sobrecarga psicológica'),
+  employee(48, 'Quando há aumento de demanda, recebo apoio suficiente da liderança ou da equipe.', 'Alta demanda de trabalho ou sobrecarga psicológica'),
+
+  employee(49, 'Fico sem tarefas suficientes durante parte relevante da jornada.', 'Baixa demanda de trabalho ou subcarga', 'frequency', true),
+  employee(50, 'Sinto tédio constante ou falta de desafio nas minhas atividades.', 'Baixa demanda de trabalho ou subcarga', 'frequency', true),
+  employee(51, 'Minhas capacidades e conhecimentos são bem aproveitados no trabalho.', 'Baixa demanda de trabalho ou subcarga'),
+  employee(52, 'Tenho atividades suficientes para me manter produtivo e engajado.', 'Baixa demanda de trabalho ou subcarga'),
+  {
+    questionKey: 'suggestions',
+    text: 'O que poderia melhorar no ambiente de trabalho?',
+    category: 'Percepção final',
+    type: 'textarea',
+    required: false,
+    position: 53,
+  },
+];
+
 export const DEFAULT_COMPANY_QUESTIONS: QuestionnaireQuestionSeed[] = [
   {
     questionKey: 'unidade',
@@ -276,5 +351,12 @@ export const DEFAULT_QUESTIONNAIRES: QuestionnaireSeed[] = [
     description: 'Inventário base de riscos psicossociais respondido anonimamente pelos colaboradores.',
     formType: 'employee',
     questions: DEFAULT_EMPLOYEE_QUESTIONS,
+  },
+  {
+    slug: 'default-employee-v2',
+    name: 'Formulário de colaboradores padrão v2 - 13 fatores MTE',
+    description: 'Inventário base de riscos psicossociais alinhado aos 13 fatores indicados pelo MTE, respondido anonimamente pelos colaboradores.',
+    formType: 'employee',
+    questions: DEFAULT_EMPLOYEE_V2_QUESTIONS,
   },
 ];

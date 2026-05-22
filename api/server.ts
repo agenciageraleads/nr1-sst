@@ -411,10 +411,20 @@ async function getQuestionnaireDetail(questionnaireId: string, includeInactive =
 }
 
 async function findDefaultQuestionnaire(formType: QuestionnaireFormType, db: Queryable = pool) {
+  if (formType === 'employee') {
+    const preferred = await db.query(
+      `select * from questionnaires
+       where form_type = $1 and company_id is null and status = 'active' and slug = 'default-employee-v2'
+       limit 1`,
+      [formType]
+    );
+    if (preferred.rows[0]) return preferred.rows[0];
+  }
+
   const result = await db.query(
     `select * from questionnaires
      where form_type = $1 and company_id is null and status = 'active'
-     order by created_at asc
+     order by created_at desc
      limit 1`,
     [formType]
   );
@@ -817,34 +827,30 @@ function parseEmployeeCapacity(value: unknown) {
 }
 
 function privacySummary(employeeResponsesCount: number, minEmployeeResponses: number, employeeCapacity?: number | null) {
-  if (employeeCapacity && employeeCapacity < minEmployeeResponses) {
+  const hasResponses = employeeResponsesCount > 0;
+
+  if (!hasResponses) {
     return {
       minimumResponsesMet: false,
       minEmployeeResponses,
-      employeeCapacity,
-      smallCompanyMode: true,
+      employeeCapacity: employeeCapacity || null,
+      smallCompanyMode: false,
       analysisAllowed: false,
-      reportMode: 'micro_company',
-      message: `A empresa informa ${employeeCapacity} colaboradores. Como o quadro é menor que a amostra anônima mínima de ${minEmployeeResponses}, este relatório deve seguir modo microempresa: avaliação institucional/técnica, sem exposição de scores por categoria baseados em respostas individuais.`,
-      nextAction: 'Usar avaliação técnica/institucional, entrevista conduzida por responsável habilitado ou checklist de observação, sem apresentar resultado individualizado como diagnóstico anônimo.',
+      reportMode: 'insufficient_sample',
+      message: 'Ainda não há respostas de colaboradores para calcular os riscos psicossociais da campanha.',
+      nextAction: 'Coletar ao menos uma resposta de colaborador e gerar novamente o relatório.',
     };
   }
 
-  const minimumResponsesMet = employeeResponsesCount >= minEmployeeResponses;
-
   return {
-    minimumResponsesMet,
+    minimumResponsesMet: true,
     minEmployeeResponses,
     employeeCapacity: employeeCapacity || null,
     smallCompanyMode: false,
-    analysisAllowed: minimumResponsesMet,
-    reportMode: minimumResponsesMet ? 'collective_analysis' : 'insufficient_sample',
-    message: minimumResponsesMet
-      ? `A amostra mínima de ${minEmployeeResponses} respostas foi atingida.`
-      : `A análise por categoria fica bloqueada até atingir a amostra mínima de ${minEmployeeResponses} respostas. Foram registradas ${employeeResponsesCount} respostas.`,
-    nextAction: minimumResponsesMet
-      ? 'Gerar análise agregada normalmente.'
-      : 'Continuar a coleta até atingir a amostra mínima e gerar novamente o relatório.',
+    analysisAllowed: true,
+    reportMode: 'collective_analysis',
+    message: `Análise gerada com ${employeeResponsesCount} resposta(s) de colaboradores, usando os dados disponíveis na campanha.`,
+    nextAction: 'Gerar análise agregada normalmente com as respostas disponíveis.',
   };
 }
 
@@ -874,7 +880,6 @@ function buildAnonymousSegmentations(responses: any[], minEmployeeResponses: num
 
     const rawGroups = Array.from(groups.entries()).filter(([, rows]) => rows.length > 0);
     const visible = rawGroups
-      .filter(([, rows]) => rows.length >= minEmployeeResponses && totalResponses - rows.length >= minEmployeeResponses)
       .map(([value, rows]) => {
         const categories = calculateCategoryAverages(rows);
         const topRiskCategory = categories[0] || null;
@@ -895,9 +900,9 @@ function buildAnonymousSegmentations(responses: any[], minEmployeeResponses: num
       label: definition.label,
       totalGroups: rawGroups.length,
       visibleGroups: visible.length,
-      hiddenGroups: rawGroups.length - visible.length,
+      hiddenGroups: 0,
       minEmployeeResponses,
-      rule: `Segmentos exibidos somente quando o grupo e o complemento possuem pelo menos ${minEmployeeResponses} respostas.`,
+      rule: 'Recortes exibidos com as respostas disponíveis na campanha.',
       segments: visible,
     };
   });
@@ -1478,27 +1483,18 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
     );
     doc.moveDown(0.8);
     doc.text(
-      data.stats.privacy?.smallCompanyMode
-        ? `Por privacidade, empresas com quadro menor que ${data.settings.minEmployeeResponses} colaboradores devem usar modo microempresa. O relatorio nao transforma respostas individuais em score anonimo por categoria.`
-        : `Por privacidade, os indicadores por categoria so sao exibidos quando ha ao menos ${data.settings.minEmployeeResponses} respostas de colaboradores. O relatorio nao lista respostas individuais.`,
+      'Os indicadores sao calculados com as respostas disponiveis na campanha. O relatorio nao lista respostas individuais e apresenta recortes apenas como consolidacao operacional dos dados coletados.',
       { align: 'justify', lineGap: 3 }
     );
 
     sectionTitle('4. Resultados Agregados');
     if (!data.stats.minimumResponsesMet) {
       doc.font('Helvetica-Bold').fontSize(11).fillColor('#b45309').text(
-        data.stats.privacy?.smallCompanyMode ? 'Relatorio adaptado para microempresa.' : 'Amostra minima ainda nao atingida.'
+        'Sem respostas de colaboradores.'
       );
       doc.font('Helvetica').fontSize(10).fillColor('#475569').text(
-        data.stats.privacy?.message || `Foram registradas ${data.stats.employeeResponsesCount} respostas. Recomenda-se coletar ao menos ${data.settings.minEmployeeResponses} respostas antes de interpretar riscos por categoria.`
+        data.stats.privacy?.message || 'Colete ao menos uma resposta de colaborador antes de interpretar riscos por categoria.'
       );
-      if (data.stats.privacy?.smallCompanyMode) {
-        doc.moveDown(0.8);
-        doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a').text('Orientacao operacional');
-        doc.font('Helvetica').fontSize(8).fillColor('#334155').text(
-          'A avaliacao deve ser institucional e tecnica: observacao do trabalho real, entrevista qualificada, checklist de fatores psicossociais e registro de medidas preventivas, sem transformar respostas individuais em percentuais anonimos por categoria.'
-        );
-      }
     } else {
       data.stats.categoryAverages.forEach((category) => {
         ensureSpace(58);
@@ -1522,9 +1518,7 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
     sectionTitle('5. Segmentacao Anonima E Comparativo Institucional');
     if (!data.stats.minimumResponsesMet) {
       doc.font('Helvetica').fontSize(10).fillColor('#475569').text(
-        data.stats.privacy?.smallCompanyMode
-          ? 'Segmentacoes nao se aplicam ao modo microempresa, pois nao ha grupos anonimos suficientes para comparacao.'
-          : 'Segmentacoes e comparativos ficam bloqueados enquanto a campanha nao puder gerar analise coletiva anonima.'
+        'Segmentacoes e comparativos aparecem assim que houver resposta de colaborador para calcular os recortes.'
       );
     } else {
       const segmentations = (data.stats.segmentations || []).filter((item: any) => item.visibleGroups > 0 || item.hiddenGroups > 0);
@@ -1538,9 +1532,6 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
             const top = segment.topRiskCategory ? `${segment.topRiskCategory.name}: ${segment.topRiskCategory.risk}%` : 'sem risco calculado';
             doc.font('Helvetica').fontSize(8).fillColor('#334155').text(`${segment.value} - ${segment.count} respostas (${segment.share}%) - maior risco: ${top}`);
           });
-          if (segmentation.hiddenGroups > 0) {
-            doc.font('Helvetica').fontSize(8).fillColor('#64748b').text(`${segmentation.hiddenGroups} grupo(s) oculto(s) por amostra insuficiente ou complemento pequeno.`);
-          }
         });
       }
 
@@ -1560,9 +1551,7 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
     const criticalItems = data.stats.categoryAverages.filter((category) => category.risk > 40);
     if (!data.stats.minimumResponsesMet) {
       doc.font('Helvetica').fontSize(10).fillColor('#475569').text(
-        data.stats.privacy?.smallCompanyMode
-          ? 'Acoes preventivas gerais para microempresa: revisar organizacao das tarefas, clareza de papeis, pausas, jornada, comunicacao direta, canal seguro de conversa e registro das medidas adotadas pelo responsavel tecnico.'
-          : 'Acoes preventivas gerais: manter canal de escuta, reforcar comunicacao de papeis e metas, orientar liderancas sobre conduta respeitosa e programar nova leitura apos atingir a amostra minima.'
+        'O plano de acao sera gerado quando houver ao menos uma resposta de colaborador na campanha.'
       );
     } else if (!criticalItems.length) {
       doc.font('Helvetica-Bold').fontSize(11).fillColor('#15803d').text('Nivel de risco controlado.');
@@ -1708,7 +1697,7 @@ app.patch('/report-settings', requireAuth, requireAdmin, asyncHandler(async (req
 
   if (!Number.isFinite(price) || price <= 0) return res.status(400).json({ error: 'invalid_price' });
   if (!Number.isFinite(installments) || installments < 1 || installments > 12) return res.status(400).json({ error: 'invalid_installments' });
-  if (!Number.isFinite(minResponses) || minResponses < 5) return res.status(400).json({ error: 'invalid_min_responses', message: 'A amostra mínima deve ser de pelo menos 5 respostas.' });
+  if (!Number.isFinite(minResponses) || minResponses < 5) return res.status(400).json({ error: 'invalid_min_responses', message: 'A quantidade interna de referência deve ser de pelo menos 5 respostas.' });
 
   const result = await pool.query(
     `update report_settings

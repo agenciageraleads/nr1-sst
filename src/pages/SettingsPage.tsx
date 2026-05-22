@@ -338,18 +338,6 @@ export default function SettingsPage() {
                       className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-500 outline-none"
                     />
                   </label>
-                  <label className="space-y-2">
-                    <span className="text-sm font-bold text-slate-700">Mínimo anônimo</span>
-                    <input
-                      type="number"
-                      min="5"
-                      value={reportSettings.minEmployeeResponses}
-                      onChange={(event) =>
-                        setReportSettings((current) => ({ ...current, minEmployeeResponses: Math.max(5, Number(event.target.value || 5)) }))
-                      }
-                      className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-500 outline-none"
-                    />
-                  </label>
                 </div>
 
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4 border-t border-slate-100">

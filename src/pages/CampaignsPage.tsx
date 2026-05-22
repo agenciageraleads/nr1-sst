@@ -80,6 +80,10 @@ export default function CampaignsPage() {
       .sort((a, b) => {
         if (a.companyId && !b.companyId) return -1;
         if (!a.companyId && b.companyId) return 1;
+        if (formType === 'employee') {
+          if (a.slug === 'default-employee-v2' && b.slug !== 'default-employee-v2') return -1;
+          if (b.slug === 'default-employee-v2' && a.slug !== 'default-employee-v2') return 1;
+        }
         return a.name.localeCompare(b.name);
       });
 

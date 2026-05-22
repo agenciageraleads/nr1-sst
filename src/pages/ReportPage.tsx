@@ -7,10 +7,8 @@ import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Loader2, Printer } from 'lucide-react';
-import { format } from 'date-fns';
 import {
   api,
-  formatDateValue,
   type ResultsAnalysisPayload,
   type ResultsCategoryAverage,
   type ResultsEvidenceQuestion,
@@ -62,7 +60,7 @@ const REPORT_STYLES = `
     box-shadow: 0 18px 50px rgba(15, 23, 42, 0.18);
     min-height: 297mm;
     overflow: hidden;
-    padding: 29mm 14mm 20mm;
+    padding: 22mm 14mm 16mm;
     position: relative;
     width: 210mm;
   }
@@ -93,7 +91,7 @@ const REPORT_STYLES = `
     color: #000;
     display: grid;
     font-size: 10.5pt;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr;
     left: 12mm;
     line-height: 1;
     position: absolute;
@@ -134,6 +132,8 @@ const REPORT_STYLES = `
 
   .eso-table {
     border-collapse: collapse;
+    break-inside: avoid;
+    page-break-inside: avoid;
     font-size: 12pt;
     line-height: 1.1;
     margin: 0 0 5mm;
@@ -145,6 +145,16 @@ const REPORT_STYLES = `
     border: 1px solid #8f8f8f;
     padding: 2.2mm 2.6mm;
     vertical-align: top;
+  }
+
+  .eso-compact-table {
+    font-size: 9.3pt;
+    margin-bottom: 2.5mm;
+  }
+
+  .eso-compact-table th,
+  .eso-compact-table td {
+    padding: 1.5mm 1.8mm;
   }
 
   .eso-table th {
@@ -180,19 +190,26 @@ const REPORT_STYLES = `
     width: 7px;
   }
 
-  .eso-bar-track {
-    background: #f6f6f6;
-    border: 1px solid #8f8f8f;
-    display: inline-block;
-    height: 12px;
-    margin-right: 2mm;
-    vertical-align: middle;
-    width: 46mm;
+  .eso-action-table {
+    font-size: 9.4pt;
   }
 
-  .eso-bar-fill {
-    display: block;
-    height: 100%;
+  .eso-action-table th,
+  .eso-action-table td {
+    padding: 1.8mm 1.2mm;
+  }
+
+  .eso-action-problem {
+    width: 42mm;
+  }
+
+  .eso-action-name {
+    width: 48mm;
+  }
+
+  .eso-month-cell {
+    text-align: center;
+    width: 7.9mm;
   }
 
   .eso-dashed-line {
@@ -260,23 +277,47 @@ function normalizeKey(value: string) {
   return value.trim().toLocaleLowerCase('pt-BR');
 }
 
-function formatReportDate(value: unknown, fallback = 'Não informado') {
-  const date = formatDateValue(value);
-  return date ? format(date, 'dd/MM/yyyy') : fallback;
-}
-
-function addYears(date: Date, years: number) {
-  const next = new Date(date);
-  next.setFullYear(next.getFullYear() + years);
-  return next;
-}
-
 function chunkArray<T>(items: T[], size: number) {
   const chunks: T[][] = [];
   for (let index = 0; index < items.length; index += size) {
     chunks.push(items.slice(index, index + size));
   }
   return chunks;
+}
+
+const MONTH_LABELS = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+
+function addMonths(date: Date, months: number) {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
+  return next;
+}
+
+function buildActionMonths(baseDate: Date) {
+  return Array.from({ length: 12 }, (_, index) => {
+    const date = addMonths(baseDate, index);
+    return {
+      key: `${date.getFullYear()}-${date.getMonth()}`,
+      label: MONTH_LABELS[date.getMonth()],
+      year: date.getFullYear(),
+    };
+  });
+}
+
+function summarizeAction(action: string, maxLength = 78) {
+  const normalized = action.replace(/\s+/g, ' ').replace(/\.$/, '').trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 1).trim()}…`;
+}
+
+function sentenceCase(value: string) {
+  return value ? `${value.charAt(0).toLocaleUpperCase('pt-BR')}${value.slice(1)}` : value;
+}
+
+function summarizeProblem(category: ResultsCategoryAverage, drivers: EvidenceDriver[]) {
+  const driver = drivers[0]?.label;
+  const problem = driver ? `${category.name}: ${driver}` : `${category.name}: risco ${category.risk}%`;
+  return summarizeAction(problem, 60);
 }
 
 function questionLabel(question: ResultsEvidenceQuestion) {
@@ -520,7 +561,7 @@ function getActionPlan(category: ResultsCategoryAverage, drivers: EvidenceDriver
     return {
       what: primaryAction,
       why: `${finding.riskMeaning} ${driverContext}`,
-      where: 'Categorias, setores ou grupos expostos identificados na campanha, respeitando a amostra mínima e o anonimato.',
+      where: 'Categorias, setores ou grupos expostos identificados com as respostas disponíveis na campanha.',
       who: 'Direção, RH, liderança da área e responsável técnico de SST.',
       how: `${secondaryActions || 'Definir controles preventivos compatíveis com o fator observado.'}${indicators ? ` Acompanhar: ${indicators}.` : ''}`,
     };
@@ -565,21 +606,20 @@ function getActionPlan(category: ResultsCategoryAverage, drivers: EvidenceDriver
   };
 }
 
-function DocumentTopline({ issuedAt }: { issuedAt: Date }) {
+function DocumentTopline() {
   return (
     <div className="eso-topline">
-      <span>{format(issuedAt, 'dd/MM/yyyy, HH:mm')}</span>
+      <span />
       <span className="eso-topline-center">Relatório Técnico NR-01</span>
       <span className="eso-topline-right" />
     </div>
   );
 }
 
-function DocumentFooter({ page, total }: { page: number; total: number }) {
+function DocumentFooter() {
   return (
     <div className="eso-footer">
       <span>Documento técnico complementar ao PGR</span>
-      <span>{page}/{total}</span>
     </div>
   );
 }
@@ -597,9 +637,9 @@ function Sheet({
 }) {
   return (
     <section className="eso-sheet">
-      <DocumentTopline issuedAt={issuedAt} />
+      <DocumentTopline />
       {children}
-      <DocumentFooter page={page} total={totalPages} />
+      <DocumentFooter />
     </section>
   );
 }
@@ -615,8 +655,6 @@ function MetadataPage({
   campaign,
   company,
   totalResponses,
-  startDate,
-  reviewDate,
 }: {
   page: number;
   totalPages: number;
@@ -624,21 +662,12 @@ function MetadataPage({
   campaign: any;
   company: any;
   totalResponses: number;
-  startDate: string;
-  reviewDate: string;
 }) {
   const address = [company?.cidade, company?.uf].filter(Boolean).join('/');
 
   return (
     <Sheet page={page} totalPages={totalPages} issuedAt={issuedAt}>
       <DocumentTitle />
-
-      <div className="mb-[5mm] grid grid-cols-[1fr_38mm_1fr_38mm] items-center gap-[5mm] text-[13pt] font-bold">
-        <span className="text-right">INÍCIO DA VALIDADE:</span>
-        <span className="border border-[#333] py-[2mm] text-center font-normal">{startDate}</span>
-        <span className="text-right">REVISAR ATÉ:</span>
-        <span className="border border-[#333] py-[2mm] text-center font-normal">{reviewDate}</span>
-      </div>
 
       <table className="eso-table">
         <tbody>
@@ -685,16 +714,6 @@ function MetadataPage({
           </tr>
         </tbody>
       </table>
-
-      <h2 className="eso-heading mt-[12mm]">SUMÁRIO</h2>
-      <div className="space-y-[5mm] text-[13pt] font-bold uppercase">
-        <p>1 - Introdução e metodologia de cálculo</p>
-        <p>2 - Resultados do inventário de riscos psicossociais</p>
-        <p>3 - Segmentação anônima e comparativo institucional</p>
-        <p>4 - Ambientes, categorias e inventário de riscos</p>
-        <p>5 - Plano de ação e medidas de prevenção</p>
-        <p>6 - Considerações finais e assinaturas</p>
-      </div>
     </Sheet>
   );
 }
@@ -726,7 +745,7 @@ function MethodologyPage({
       </p>
       {privacy && !privacy.analysisAllowed && (
         <p className="eso-paragraph">
-          <strong>Amostra mínima:</strong> {privacy.message} Para preservar anonimato e reduzir risco de identificação indireta, o relatório não exibe riscos, evidências ou recomendações enquanto este limite não for atingido.
+          <strong>Disponibilidade dos dados:</strong> {privacy.message} O relatório calcula riscos, evidências e recomendações assim que houver ao menos uma resposta de colaborador.
         </p>
       )}
 
@@ -815,14 +834,13 @@ function ResultsPage({
 
       <h2 className="eso-section-title">2. Resultados do inventário de riscos psicossociais</h2>
       <p className="eso-paragraph">
-        Abaixo estão listadas as categorias avaliadas, o índice de risco e o nível técnico sugerido pela matriz de classificação. A coluna de evidências resume os fatores que mais contribuíram para o resultado da categoria.
+        Abaixo estão listadas as categorias avaliadas, o percentual de risco e o nível técnico sugerido pela matriz de classificação. A coluna de evidências resume os fatores que mais contribuíram para o resultado da categoria.
       </p>
 
       <table className="eso-table">
         <thead>
           <tr>
             <th>Categoria</th>
-            <th>IQCT</th>
             <th>Risco</th>
             <th>Nível</th>
             <th>Evidências consideradas</th>
@@ -835,12 +853,6 @@ function ResultsPage({
             return (
               <tr key={category.name}>
                 <td className="font-bold">{category.name}</td>
-                <td className="whitespace-nowrap">
-                  <span className="eso-bar-track">
-                    <span className="eso-bar-fill" style={{ width: `${category.score}%`, background: '#92d050' }} />
-                  </span>
-                  {category.score}/100
-                </td>
                 <td className="eso-center font-bold" style={{ color: band.textColor }}>{category.risk}%</td>
                 <td className="eso-center font-bold">
                   <span className="eso-risk-dot" style={{ background: band.color, marginRight: '2mm' }} />
@@ -873,70 +885,38 @@ function InsufficientSamplePage({
   totalResponses: number;
   privacy?: ResultsSummary['privacy'];
 }) {
-  const isMicroCompany = Boolean(privacy?.smallCompanyMode);
-
   return (
     <Sheet page={page} totalPages={totalPages} issuedAt={issuedAt}>
       <DocumentTitle />
 
-      <h2 className="eso-section-title">
-        {isMicroCompany ? '2. Relatório adaptado para microempresa' : '2. Resultados bloqueados por amostra mínima'}
-      </h2>
+      <h2 className="eso-section-title">2. Sem respostas de colaboradores</h2>
       <p className="eso-paragraph">
-        Foram registradas {totalResponses} respostas de colaboradores. {privacy?.message || 'A amostra mínima configurada ainda não foi atingida.'}
+        Foram registradas {totalResponses} respostas de colaboradores. {privacy?.message || 'Ainda não há respostas para calcular riscos por categoria.'}
       </p>
       <p className="eso-paragraph">
-        {isMicroCompany
-          ? 'Esta entrega não está bloqueada: ela muda de natureza. Em vez de apresentar estatística coletiva anônima, o relatório orienta uma avaliação institucional e técnica proporcional ao porte da empresa, sem transformar respostas individuais em score coletivo.'
-          : 'Para preservar o anonimato individual, este relatório não apresenta médias por categoria, evidências principais, inventário técnico ou plano de ação enquanto a campanha não atingir o número mínimo de respostas configurado.'}
+        Assim que a campanha tiver ao menos uma resposta, o sistema gera resultados por categoria, evidências principais, inventário técnico, recortes e plano de ação com os dados disponíveis.
       </p>
 
       <table className="eso-table">
         <tbody>
           <tr>
             <td className="eso-label">Tipo de entrega</td>
-            <td>{isMicroCompany ? 'Modo microempresa - avaliação técnica/institucional' : 'Bloqueada por privacidade'}</td>
+            <td>Aguardando resposta de colaborador</td>
           </tr>
           <tr>
             <td className="eso-label">Respostas atuais</td>
             <td>{totalResponses}</td>
           </tr>
           <tr>
-            <td className="eso-label">{isMicroCompany ? 'Quadro informado' : 'Mínimo configurado'}</td>
-            <td>{isMicroCompany ? `${privacy?.employeeCapacity ?? 'Não informado'} colaboradores` : privacy?.minEmployeeResponses ?? 'Não informado'}</td>
+            <td className="eso-label">Critério de cálculo</td>
+            <td>O cálculo usa as respostas disponíveis; uma resposta já libera a análise da campanha.</td>
           </tr>
           <tr>
             <td className="eso-label">Próxima ação</td>
-            <td>{privacy?.nextAction || 'Continuar a coleta até atingir a amostra mínima e gerar novamente o relatório.'}</td>
+            <td>{privacy?.nextAction || 'Coletar ao menos uma resposta de colaborador e gerar novamente o relatório.'}</td>
           </tr>
         </tbody>
       </table>
-
-      {isMicroCompany && (
-        <>
-          <h2 className="eso-section-title">Orientação operacional para microempresa</h2>
-          <table className="eso-table eso-small">
-            <tbody>
-              <tr>
-                <td className="eso-label">Conduta recomendada</td>
-                <td>Registrar avaliação institucional, observação do trabalho real e entrevista técnica conduzida por responsável habilitado.</td>
-              </tr>
-              <tr>
-                <td className="eso-label">O que não fazer</td>
-                <td>Não apresentar percentuais por categoria como diagnóstico anônimo, pois o grupo é pequeno demais para anonimato estatístico.</td>
-              </tr>
-              <tr>
-                <td className="eso-label">Evidências úteis</td>
-                <td>Rotina de trabalho, jornada, pausas, organização das tarefas, clareza de papéis, comunicação, ocorrências e medidas preventivas já existentes.</td>
-              </tr>
-              <tr>
-                <td className="eso-label">Plano inicial</td>
-                <td>Definir ações preventivas gerais, registrar responsáveis e reavaliar após mudanças relevantes na equipe ou na organização do trabalho.</td>
-              </tr>
-            </tbody>
-          </table>
-        </>
-      )}
     </Sheet>
   );
 }
@@ -963,7 +943,7 @@ function EvidencePage({
       <p className="eso-paragraph">
         Esta página consolida, por categoria, os fatores que mais elevaram o risco. As perguntas ficam agrupadas como evidência técnica, evitando um relatório excessivamente longo e preservando a leitura executiva.
       </p>
-      <table className="eso-table eso-small">
+      <table className="eso-table eso-small eso-compact-table">
         <thead>
           <tr>
             <th>Categoria</th>
@@ -1026,6 +1006,7 @@ function SegmentationPage({
   institutionalComparison: ResultsInstitutionalComparison[];
 }) {
   const visibleSegmentations = segmentations.filter((item) => item.visibleGroups > 0 || item.hiddenGroups > 0);
+  const sectorSegmentation = segmentations.find((item) => item.key === 'sector' && item.segments.length > 0);
   const relevantComparisons = institutionalComparison.filter((item) => item.relevant).slice(0, 5);
 
   return (
@@ -1033,49 +1014,58 @@ function SegmentationPage({
       <DocumentTitle />
       <h2 className="eso-section-title">3. Segmentação anônima e comparativo institucional</h2>
       <p className="eso-paragraph">
-        Esta seção mostra somente recortes que preservam anonimato. Um segmento aparece apenas quando o grupo e o complemento possuem amostra mínima suficiente, evitando identificação direta ou por diferença.
+        Esta seção resume a amostragem dos recortes com as respostas disponíveis, contemplando empresas e setores com poucos colaboradores.
       </p>
 
-      <table className="eso-table eso-small">
+      <table className="eso-table eso-small eso-compact-table">
         <thead>
           <tr>
             <th>Recorte</th>
-            <th>Segmento</th>
-            <th>Amostra</th>
-            <th>Maior risco</th>
-            <th>Observação</th>
+            <th>Grupos identificados</th>
+            <th>Grupos exibidos</th>
+            <th>Critério aplicado</th>
           </tr>
         </thead>
         <tbody>
-          {visibleSegmentations.flatMap((segmentation) => {
-            const rows = segmentation.segments.slice(0, 4).map((segment) => (
-              <tr key={`${segmentation.key}-${segment.value}`}>
-                <td className="font-bold">{segmentation.label}</td>
-                <td>{segment.value}</td>
-                <td className="eso-center">{segment.count} ({segment.share}%)</td>
-                <td>{segment.topRiskCategory ? `${segment.topRiskCategory.name}: ${segment.topRiskCategory.risk}%` : 'Sem risco calculado'}</td>
-                <td>{segmentation.rule}</td>
-              </tr>
-            ));
-
-            if (segmentation.hiddenGroups > 0) {
-              rows.push(
-                <tr key={`${segmentation.key}-hidden`}>
-                  <td className="font-bold">{segmentation.label}</td>
-                  <td colSpan={4}>{segmentation.hiddenGroups} grupo(s) oculto(s) por amostra insuficiente ou complemento pequeno.</td>
-                </tr>
-              );
-            }
-
-            return rows;
-          })}
+          {visibleSegmentations.map((segmentation) => (
+            <tr key={segmentation.key}>
+              <td className="font-bold">{segmentation.label}</td>
+              <td className="eso-center">{segmentation.totalGroups}</td>
+              <td className="eso-center">{segmentation.visibleGroups}</td>
+              <td>{segmentation.rule}</td>
+            </tr>
+          ))}
           {!visibleSegmentations.length && (
             <tr>
-              <td colSpan={5}>Nenhum recorte atingiu a regra de anonimato para exibição.</td>
+              <td colSpan={4}>Nenhum recorte disponível nas respostas da campanha.</td>
             </tr>
           )}
         </tbody>
       </table>
+
+      {sectorSegmentation && (
+        <>
+          <h2 className="eso-section-title">Amostragem por setor</h2>
+          <table className="eso-table eso-small">
+            <thead>
+              <tr>
+                <th>Setor</th>
+                <th>Respostas</th>
+                <th>Maior risco identificado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sectorSegmentation.segments.map((segment) => (
+                <tr key={segment.value}>
+                  <td className="font-bold">{segment.value}</td>
+                  <td className="eso-center">{segment.count}</td>
+                  <td>{segment.topRiskCategory ? `${segment.topRiskCategory.name}: ${segment.topRiskCategory.risk}%` : 'Sem risco calculado'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
 
       <h2 className="eso-section-title">Comparativo institucional</h2>
       <p className="eso-paragraph">
@@ -1148,7 +1138,7 @@ function InventoryPage({
         const finding = technicalByName.get(normalizeRiskKey(category.name));
 
         return (
-          <table className="eso-table eso-small" key={category.name}>
+          <table className="eso-table eso-small eso-compact-table" key={category.name}>
             <tbody>
               <tr>
                 <td colSpan={3} className="eso-risk-title">
@@ -1251,23 +1241,23 @@ function ActionPlanPage({
 
       {showIntro && (
         <>
-          <h2 className="eso-section-title">5. Plano de ação e medidas de prevenção</h2>
+          <h2 className="eso-section-title">5. Cronograma de ação</h2>
           <p className="eso-paragraph">
-            O plano de ação é gerado por regra determinística a partir das categorias com risco acima de 40%, da interpretação técnica e das evidências que mais influenciaram cada categoria. As atividades abaixo devem ser validadas pelo responsável técnico e ajustadas ao setor, cargo e realidade operacional da empresa.
+            As ações abaixo estão resumidas para acompanhamento operacional. As datas de execução devem ser definidas em conjunto com a empresa após a apresentação dos resultados.
           </p>
         </>
       )}
 
-      <table className="eso-table eso-small">
+      <table className="eso-table eso-action-table">
         <thead>
           <tr>
-            <th>Risco</th>
-            <th>O quê?</th>
-            <th>Por quê?</th>
-            <th>Onde?</th>
-            <th>Quem?</th>
-            <th>Quando?</th>
-            <th>Como?</th>
+            <th className="eso-action-problem">Problema encontrado</th>
+            <th className="eso-action-name">Ação sugerida</th>
+            {buildActionMonths(issuedAt).map((month) => (
+              <th key={month.key} className="eso-month-cell">
+                {month.label}<br />{month.year}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -1277,21 +1267,17 @@ function ActionPlanPage({
             const recommendation = recommendationsByName.get(normalizeRiskKey(category.name));
             const fallbackPlan = getActionPlan(category, drivers, finding);
             const plan = recommendation || fallbackPlan;
-            const evidenceText = '';
-            const ruleText = recommendation?.rule ? ` Regra: ${recommendation.rule}` : '';
             return (
               <tr key={category.name}>
                 <td className="font-bold">
-                  {category.name}<br />
-                  {category.risk}%<br />
-                  {recommendation?.priority && <span>{recommendation.priority}</span>}
+                  {summarizeProblem(category, drivers)}
                 </td>
-                <td>{plan.what}</td>
-                <td>{plan.why}{evidenceText}{ruleText}</td>
-                <td>{plan.where}</td>
-                <td>{plan.who}</td>
-                <td>{recommendation?.when || 'Início em até 15 dias. Revisão em 90 dias.'}</td>
-                <td>{plan.how}</td>
+                <td className="font-bold">
+                  {sentenceCase(summarizeAction(plan.what, 68))}
+                </td>
+                {buildActionMonths(issuedAt).map((month) => (
+                  <td key={month.key} className="eso-month-cell" />
+                ))}
               </tr>
             );
           })}
@@ -1369,15 +1355,11 @@ export default function ReportPage() {
   const segmentations = Array.isArray(summary?.segmentations) ? summary.segmentations as ResultsSegmentation[] : [];
   const institutionalComparison = Array.isArray(summary?.institutionalComparison) ? summary.institutionalComparison as ResultsInstitutionalComparison[] : [];
   const totalResponses = summary?.employeeResponsesCount ?? responses.length;
-  const campaignStart = formatDateValue(campaign?.startDate) || issuedAt;
-  const campaignEnd = formatDateValue(campaign?.endDate) || addYears(campaignStart, 2);
-  const startDate = formatReportDate(campaignStart);
-  const reviewDate = formatReportDate(campaignEnd);
-  const evidenceChunks = analysisAllowed ? chunkArray(categories, 4) : [];
-  const inventoryChunks = analysisAllowed ? chunkArray(categories, 1) : [];
+  const evidenceChunks = analysisAllowed ? chunkArray(categories, 5) : [];
+  const inventoryChunks = analysisAllowed ? chunkArray(categories, 2) : [];
   const criticalItems = categories.filter((category) => category.risk > 40);
   const actionItems = analysisAllowed ? (criticalItems.length ? criticalItems : categories.slice(0, 1)) : [];
-  const actionChunks = chunkArray(actionItems, 2);
+  const actionChunks = chunkArray(actionItems, 9);
   const hasPhase4Page = analysisAllowed;
   const segmentPageNumber = 4;
   const evidenceStartPage = hasPhase4Page ? 5 : 4;
@@ -1412,8 +1394,6 @@ export default function ReportPage() {
           campaign={campaign}
           company={company}
           totalResponses={totalResponses}
-          startDate={startDate}
-          reviewDate={reviewDate}
         />
         <MethodologyPage page={2} totalPages={totalPages} issuedAt={issuedAt} privacy={summary?.privacy} />
         {analysisAllowed ? (
