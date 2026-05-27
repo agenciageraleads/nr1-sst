@@ -3,7 +3,8 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express, { Request, Response, NextFunction } from 'express';
 import { createHmac, randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
+import path from 'node:path';
 import { Pool } from 'pg';
 import PDFDocument from 'pdfkit';
 import {
@@ -1480,11 +1481,9 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
     // ==========================================
     // C A P A   D O   R E L A T Ó R I O   (Pág 1)
     // ==========================================
-    const path = require('path');
-    const fs = require('fs');
     const logoPath = path.join(process.cwd(), 'public', 'logo horizontal.png');
     
-    if (fs.existsSync(logoPath)) {
+    if (existsSync(logoPath)) {
       doc.image(logoPath, 48, 60, { width: 150 });
     } else {
       doc.font('Helvetica-Bold').fontSize(22).fillColor('#16a34a').text('VENTURA');

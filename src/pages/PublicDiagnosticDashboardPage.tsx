@@ -140,17 +140,20 @@ export default function PublicDiagnosticDashboardPage() {
 
           <div className="relative">
             {/* Background Line */}
-            <div className="absolute top-1/2 left-4 right-4 h-1 bg-slate-100 -translate-y-1/2 hidden md:block" />
+            <div className="absolute top-[36px] left-[12.5%] right-[12.5%] h-1 bg-slate-100 hidden md:block" />
             
             {/* Progress Fill Line */}
             <div 
-              className="absolute top-1/2 left-4 h-1 bg-brand-500 -translate-y-1/2 transition-all duration-500 hidden md:block"
+              className="absolute top-[36px] left-[12.5%] h-1 bg-brand-500 transition-all duration-500 hidden md:block"
               style={{
-                width: basicResultReady 
-                  ? 'calc(100% - 2rem)' 
-                  : stats.companyResponseSubmitted || stats.employeeResponsesCount > 0 
-                    ? '50%' 
-                    : '0%'
+                width: `${
+                  (([
+                    true,
+                    Boolean(stats.companyResponseSubmitted),
+                    Boolean(stats.employeeResponsesCount > 0),
+                    Boolean(basicResultReady)
+                  ].filter(Boolean).length - 1) / 3) * 75
+                }%`
               }}
             />
 
