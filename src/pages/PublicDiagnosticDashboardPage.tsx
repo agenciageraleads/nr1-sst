@@ -126,28 +126,105 @@ export default function PublicDiagnosticDashboardPage() {
 
         {error && <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 p-4 rounded-xl">{error}</p>}
 
-        <section className="grid md:grid-cols-4 gap-4">
-          <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
-            <Users className="w-6 h-6 text-brand-600 mb-3" />
-            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Colaboradores</p>
-            <p className="text-3xl font-black text-slate-900">{stats.employeeResponsesCount || 0}</p>
+        <section className="bg-white border border-slate-100 rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight">Progresso do Diagnóstico</h2>
+              <p className="text-sm text-slate-500 font-medium">Acompanhe as etapas necessárias para liberar o laudo completo.</p>
+            </div>
+            <div className="flex items-center gap-2 bg-brand-50 border border-brand-100 px-4 py-2 rounded-xl text-brand-700 font-black text-xs uppercase tracking-wider">
+              <span className="w-2.5 h-2.5 rounded-full bg-brand-600 animate-pulse" />
+              {basicResultReady ? 'Coleta concluída' : 'Coleta em andamento'}
+            </div>
           </div>
-          <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
-            <CheckCircle2 className={cn('w-6 h-6 mb-3', stats.companyResponseSubmitted ? 'text-brand-600' : 'text-amber-500')} />
-            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Institucional</p>
-            <p className="text-lg font-black text-slate-900">{stats.companyResponseSubmitted ? 'Recebido' : 'Pendente'}</p>
-          </div>
-          <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
-            <BarChart3 className={cn('w-6 h-6 mb-3', stats.minimumResponsesMet ? 'text-brand-600' : 'text-slate-400')} />
-            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Coleta</p>
-            <p className="text-lg font-black text-slate-900">{stats.minimumResponsesMet ? 'Disponível' : 'Aguardando'}</p>
-          </div>
-          <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
-            <CheckCircle2 className={cn('w-6 h-6 mb-3', basicResultReady ? 'text-brand-600' : 'text-slate-400')} />
-            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Resultado básico</p>
-            <p className="text-lg font-black text-slate-900">{basicResultReady ? 'Disponível' : 'Aguardando'}</p>
+
+          <div className="relative">
+            {/* Background Line */}
+            <div className="absolute top-1/2 left-4 right-4 h-1 bg-slate-100 -translate-y-1/2 hidden md:block" />
+            
+            {/* Progress Fill Line */}
+            <div 
+              className="absolute top-1/2 left-4 h-1 bg-brand-500 -translate-y-1/2 transition-all duration-500 hidden md:block"
+              style={{
+                width: basicResultReady 
+                  ? 'calc(100% - 2rem)' 
+                  : stats.companyResponseSubmitted || stats.employeeResponsesCount > 0 
+                    ? '50%' 
+                    : '0%'
+              }}
+            />
+
+            <div className="grid gap-6 md:grid-cols-4 relative z-10">
+              {[
+                {
+                  step: 1,
+                  title: 'Abertura',
+                  desc: 'Empresa cadastrada',
+                  status: 'completed',
+                  meta: diagnostic.company.cnpj
+                },
+                {
+                  step: 2,
+                  title: 'Formulário da Gestão',
+                  desc: stats.companyResponseSubmitted ? 'Respondido' : 'Pendente',
+                  status: stats.companyResponseSubmitted ? 'completed' : 'active',
+                  meta: stats.companyResponseSubmitted ? 'Recebido' : 'Ação necessária'
+                },
+                {
+                  step: 3,
+                  title: 'Opinião da Equipe',
+                  desc: stats.employeeResponsesCount > 0 ? `${stats.employeeResponsesCount} colaboradores` : 'Aguardando respostas',
+                  status: stats.employeeResponsesCount > 0 ? 'completed' : stats.companyResponseSubmitted ? 'active' : 'upcoming',
+                  meta: stats.employeeResponsesCount > 0 ? 'Disponível' : 'Compartilhar link'
+                },
+                {
+                  step: 4,
+                  title: 'Resultado Final',
+                  desc: basicResultReady ? 'Relatório Pronto' : 'Aguardando etapas anteriores',
+                  status: basicResultReady ? 'completed' : 'upcoming',
+                  meta: basicResultReady ? 'Liberado' : 'Bloqueado'
+                }
+              ].map((item) => {
+                const isCompleted = item.status === 'completed';
+                const isActive = item.status === 'active';
+                
+                return (
+                  <div key={item.step} className="flex md:flex-col items-start md:items-center text-left md:text-center gap-4 md:gap-3 bg-slate-50 md:bg-transparent p-4 md:p-4 rounded-xl border border-slate-100 md:border-none shadow-sm md:shadow-none">
+                    <div 
+                      className={cn(
+                        "w-10 h-10 rounded-full flex items-center justify-center font-black text-sm transition-all duration-300 shadow-md",
+                        isCompleted 
+                          ? "bg-brand-600 text-white shadow-brand-100" 
+                          : isActive 
+                            ? "bg-slate-900 text-white animate-pulse" 
+                            : "bg-white text-slate-400 border border-slate-200"
+                      )}
+                    >
+                      {isCompleted ? '✓' : item.step}
+                    </div>
+                    <div>
+                      <p className="font-black text-sm text-slate-900 uppercase tracking-tight">{item.title}</p>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5">{item.desc}</p>
+                      <span 
+                        className={cn(
+                          "inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full mt-2 border",
+                          isCompleted 
+                            ? "bg-brand-50 text-brand-700 border-brand-100" 
+                            : isActive 
+                              ? "bg-amber-50 text-amber-700 border-amber-100" 
+                              : "bg-slate-100 text-slate-400 border-slate-200"
+                        )}
+                      >
+                        {item.meta}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </section>
+
 
         <section className={cn('grid gap-6', basicResultReady || reportReady ? 'lg:grid-cols-[1fr_0.9fr]' : 'lg:grid-cols-[1fr_0.65fr]')}>
           <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm space-y-5">

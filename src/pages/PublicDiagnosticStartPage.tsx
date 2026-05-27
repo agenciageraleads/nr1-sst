@@ -25,6 +25,14 @@ export default function PublicDiagnosticStartPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const formatPhone = (value: string) => {
+    const digits = value.replace(/\D/g, '');
+    if (digits.length <= 10) {
+      return digits.replace(/^(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3').trim();
+    }
+    return digits.slice(0, 11).replace(/^(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').trim();
+  };
+
   const updateField = (field: keyof typeof initialForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
@@ -63,11 +71,11 @@ export default function PublicDiagnosticStartPage() {
               Comece o diagnóstico NR-01 da sua empresa
             </h1>
             <p className="text-lg text-slate-600 font-medium leading-relaxed">
-              Cadastre a empresa, responda o formulário institucional e compartilhe o link com os colaboradores. O resumo é gratuito; o PDF técnico para anexar ao PGR é liberado após pagamento.
+              Cadastre a empresa, responda o formulário institucional e compartilhe o link com os colaboradores. O resumo e o direcionamento para anexar ao PGR são liberados após a consolidação das respostas.
             </p>
           </div>
           <div className="grid sm:grid-cols-3 gap-3">
-            {['Coleta anônima', 'Resumo gratuito', 'PDF técnico pago'].map((item) => (
+            {['Coleta anônima', 'Resumo completo', 'Anexo para o PGR'].map((item) => (
               <div key={item} className="bg-white border border-slate-100 p-4 rounded-xl shadow-sm">
                 <p className="text-xs font-black text-slate-900 uppercase tracking-wide">{item}</p>
               </div>
@@ -131,7 +139,7 @@ export default function PublicDiagnosticStartPage() {
               </label>
               <label className="space-y-2 md:col-span-2">
                 <span className="text-sm font-bold text-slate-700">Telefone</span>
-                <input value={form.responsavelTelefone} onChange={(e) => updateField('responsavelTelefone', e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-500 outline-none" />
+                <input placeholder="(00) 00000-0000" value={form.responsavelTelefone} onChange={(e) => updateField('responsavelTelefone', formatPhone(e.target.value))} className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-500 outline-none" />
               </label>
             </div>
 
