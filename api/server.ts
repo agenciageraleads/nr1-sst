@@ -1435,29 +1435,36 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
 
     const pageBottom = () => doc.page.height - doc.page.margins.bottom;
     const ensureSpace = (height: number) => {
-      if (doc.y + height > pageBottom()) doc.addPage();
+      if (doc.y + height > pageBottom()) {
+        doc.addPage();
+        drawHeader();
+      }
     };
+
+    const drawHeader = () => {
+      doc.font('Helvetica-Bold').fontSize(7).fillColor('#16a34a').text('VENTURA SST', 48, 25);
+      doc.font('Helvetica').fontSize(7).fillColor('#64748b').text('INVENTÁRIO DE RISCOS PSICOSSOCIAIS', 0, 25, { align: 'right', width: doc.page.width - 48 });
+      doc.moveTo(48, 36).lineTo(doc.page.width - 48, 36).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
+      doc.y = 48;
+    };
+
     const sectionTitle = (title: string) => {
-      ensureSpace(34);
-      doc.moveDown(0.9);
-      const x = doc.page.margins.left;
+      ensureSpace(45);
+      doc.moveDown(1.2);
       const y = doc.y;
-      const width = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-      doc.rect(x, y, width, 18).fill('#ebebeb');
-      doc.font('Helvetica-Bold').fontSize(12).fillColor('#343434').text(title.toUpperCase(), x + 5, y + 4, { width: width - 10 });
+      doc.rect(48, y, 4, 18).fill('#16a34a'); // Vertical professional VTC green bar
+      doc.font('Helvetica-Bold').fontSize(11).fillColor('#0f172a').text(title.toUpperCase(), 58, y + 3);
       doc.y = y + 25;
     };
+
     const labelValue = (label: string, value: string) => {
       doc.font('Helvetica-Bold').fontSize(8).fillColor('#64748b').text(label.toUpperCase());
       doc.font('Helvetica').fontSize(10).fillColor('#0f172a').text(value || 'Não informado');
       doc.moveDown(0.6);
     };
+
     const technicalByCategory = new Map((data.stats.technicalFindings || []).map((finding: any) => [normalizeRiskKey(finding.category), finding]));
     const recommendationsByCategory = new Map((data.stats.reportRecommendations || []).map((recommendation: any) => [normalizeRiskKey(recommendation.category), recommendation]));
-    const bulletText = (items: string[] = [], fallback = 'A confirmar em revisão técnica.') => {
-      const cleanItems = items.filter(Boolean).slice(0, 3);
-      return cleanItems.length ? cleanItems.join('; ') : fallback;
-    };
     const shortText = (value = '', max = 82) => {
       const text = String(value || '').replace(/\s+/g, ' ').replace(/\.$/, '').trim();
       return text.length > max ? `${text.slice(0, max - 1).trim()}...` : text;
@@ -1470,33 +1477,74 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
       return { label: monthLabels[date.getMonth()], year: date.getFullYear() };
     });
 
-    doc.font('Helvetica').fontSize(10).fillColor('#000').text('Relatorio Tecnico NR-01', 0, 28, { align: 'center' });
-    doc.font('Helvetica-Bold').fontSize(14).fillColor('#343434').text('Anexo Tecnico - Inventario de Riscos Psicossociais', 48, 70, {
-      align: 'center',
-      width: doc.page.width - 96,
-    });
-    doc.y = 112;
-    sectionTitle('1. Identificacao do Estabelecimento');
-    labelValue('Razao social', data.company.razaoSocial);
+    // ==========================================
+    // C A P A   D O   R E L A T Ó R I O   (Pág 1)
+    // ==========================================
+    const path = require('path');
+    const fs = require('fs');
+    const logoPath = path.join(process.cwd(), 'public', 'logo horizontal.png');
+    
+    if (fs.existsSync(logoPath)) {
+      doc.image(logoPath, 48, 60, { width: 150 });
+    } else {
+      doc.font('Helvetica-Bold').fontSize(22).fillColor('#16a34a').text('VENTURA');
+      doc.font('Helvetica').fontSize(9).fillColor('#64748b').text('TREINAMENTOS E CONSULTORIA');
+    }
+
+    // Title Block
+    doc.y = 210;
+    doc.font('Helvetica-Bold').fontSize(28).fillColor('#0f172a').text('INVENTÁRIO DE RISCOS', 48);
+    doc.font('Helvetica-Bold').fontSize(28).fillColor('#16a34a').text('PSICOSSOCIAIS', 48);
+    doc.moveDown(0.3);
+    doc.font('Helvetica').fontSize(14).fillColor('#64748b').text('DIAGNÓSTICO PREVENTIVO NR-01', 48);
+
+    // Elegant Metadata Box
+    doc.y = 350;
+    const boxWidth = doc.page.width - 96;
+    const boxHeight = 180;
+    doc.roundedRect(48, doc.y, boxWidth, boxHeight, 8).fillColor('#f8fafc').strokeColor('#e2e8f0').lineWidth(1).fillAndStroke();
+    
+    let metaY = doc.y + 18;
+    const drawMetaLine = (label: string, value: string) => {
+      doc.font('Helvetica-Bold').fontSize(8).fillColor('#16a34a').text(label.toUpperCase(), 64, metaY);
+      doc.font('Helvetica-Bold').fontSize(11).fillColor('#0f172a').text(value || 'Não informado', 64, metaY + 12);
+      metaY += 38;
+    };
+    drawMetaLine('Razão Social', data.company.razaoSocial);
+    drawMetaLine('CNPJ / Ramo de Atividade', `${data.company.cnpj} - ${data.company.ramoAtividade}`);
+    drawMetaLine('Responsável Técnico / Emissão', `${data.responsibleName} - ${new Date().toLocaleDateString('pt-BR')}`);
+
+    // Footer on Cover Page
+    doc.font('Helvetica-Bold').fontSize(8).fillColor('#16a34a').text('DOCUMENTO COMPLEMENTAR AO PGR', 0, doc.page.height - 65, { align: 'center', width: doc.page.width });
+    
+    // Page Break to Page 2
+    doc.addPage();
+    drawHeader();
+
+    // ==========================================
+    // D O C U M E N T   C O N T E N T S (Pág 2+)
+    // ==========================================
+    sectionTitle('1. Identificação do Estabelecimento');
+    labelValue('Razão social', data.company.razaoSocial);
     labelValue('CNPJ', data.company.cnpj);
     labelValue('Ramo de atividade', data.company.ramoAtividade);
     labelValue('Cidade/UF', `${data.company.cidade}/${data.company.uf}`);
-    labelValue('Responsavel pelo diagnostico', `${data.responsibleName} - ${data.responsibleEmail}`);
+    labelValue('Responsável pelo diagnóstico', `${data.responsibleName} - ${data.responsibleEmail}`);
 
-    sectionTitle('2. Dados do Inventario');
+    sectionTitle('2. Dados do Inventário');
     labelValue('Campanha', data.campaign.name);
-    labelValue('Periodo de coleta', `${toDateString(data.campaign.startDate)} ate ${toDateString(data.campaign.endDate)}`);
+    labelValue('Período de coleta', `${toDateString(data.campaign.startDate)} até ${toDateString(data.campaign.endDate)}`);
     labelValue('Participantes', `${data.stats.employeeResponsesCount} colaboradores`);
-    labelValue('Formulario institucional', data.stats.companyResponseSubmitted ? 'Recebido' : 'Pendente');
+    labelValue('Formulário institucional', data.stats.companyResponseSubmitted ? 'Recebido' : 'Pendente');
 
     sectionTitle('3. Metodologia e Privacidade');
     doc.font('Helvetica').fontSize(10).fillColor('#334155').text(
-      'Este diagnostico consolida respostas institucionais e percepcoes coletivas dos colaboradores para apoiar a identificacao, avaliacao e mitigacao de fatores psicossociais relacionados ao trabalho, preservando o anonimato individual conforme boas praticas de LGPD.',
+      'Este diagnóstico consolida respostas institucionais e percepções coletivas dos colaboradores para apoiar a identificação, avaliação e mitigação de fatores psicossociais relacionados ao trabalho, preservando o anonimato individual conforme boas práticas de LGPD.',
       { align: 'justify', lineGap: 3 }
     );
     doc.moveDown(0.8);
     doc.text(
-      'Os indicadores sao calculados com as respostas disponiveis na campanha. O relatorio nao lista respostas individuais e apresenta recortes apenas como consolidacao operacional dos dados coletados.',
+      'Os indicadores são calculados com as respostas disponíveis na campanha. O relatório não lista respostas individuais e apresenta recortes apenas como consolidação operacional dos dados coletados.',
       { align: 'justify', lineGap: 3 }
     );
 
@@ -1510,70 +1558,72 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
       );
     } else {
       data.stats.categoryAverages.forEach((category) => {
-        ensureSpace(58);
+        ensureSpace(64);
         const finding: any = technicalByCategory.get(normalizeRiskKey(category.name));
         const barX = doc.x;
-        const barY = doc.y + 16;
+        const barY = doc.y + 18;
         const barWidth = 320;
         const riskColor = category.risk > 60 ? '#dc2626' : category.risk > 40 ? '#d97706' : '#16a34a';
         doc.font('Helvetica-Bold').fontSize(10).fillColor('#0f172a').text(category.name, barX, doc.y);
         doc.font('Helvetica-Bold').fontSize(10).fillColor(riskColor).text(`${category.risk}% de risco`, barX + 360, doc.y - 12, { width: 110, align: 'right' });
-        doc.roundedRect(barX, barY, barWidth, 7, 3).fill('#e2e8f0');
-        doc.roundedRect(barX, barY, Math.max(6, (barWidth * category.risk) / 100), 7, 3).fill(riskColor);
-        doc.y = barY + 14;
+        
+        // Progress track & fill
+        doc.roundedRect(barX, barY, barWidth, 8, 4).fill('#e2e8f0');
+        doc.roundedRect(barX, barY, Math.max(8, (barWidth * category.risk) / 100), 8, 4).fill(riskColor);
+        doc.y = barY + 16;
         if (finding?.riskMeaning) {
-          doc.font('Helvetica').fontSize(8).fillColor('#475569').text(finding.riskMeaning, { lineGap: 2 });
+          doc.font('Helvetica').fontSize(8.5).fillColor('#475569').text(finding.riskMeaning, { lineGap: 2 });
         }
-        doc.y += 8;
+        doc.y += 10;
       });
     }
 
-    sectionTitle('5. Segmentacao Anonima E Comparativo Institucional');
+    sectionTitle('5. Segmentação Anônima e Comparativo');
     if (!data.stats.minimumResponsesMet) {
       doc.font('Helvetica').fontSize(10).fillColor('#475569').text(
-        'Segmentacoes e comparativos aparecem assim que houver resposta de colaborador para calcular os recortes.'
+        'Segmentações e comparativos aparecem assim que houver resposta de colaborador para calcular os recortes.'
       );
     } else {
       const segmentations = (data.stats.segmentations || []).filter((item: any) => item.visibleGroups > 0 || item.hiddenGroups > 0);
       if (!segmentations.length) {
-        doc.font('Helvetica').fontSize(10).fillColor('#475569').text('Nenhum recorte disponivel nas respostas da campanha.');
+        doc.font('Helvetica').fontSize(10).fillColor('#475569').text('Nenhum recorte disponível nas respostas da campanha.');
       } else {
         segmentations.forEach((segmentation: any) => {
-          ensureSpace(44);
+          ensureSpace(48);
           doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a').text(segmentation.label);
           (segmentation.segments || []).slice(0, 3).forEach((segment: any) => {
             const top = segment.topRiskCategory ? `${segment.topRiskCategory.name}: ${segment.topRiskCategory.risk}%` : 'sem risco calculado';
-            doc.font('Helvetica').fontSize(8).fillColor('#334155').text(`${segment.value} - ${segment.count} respostas (${segment.share}%) - maior risco: ${top}`);
+            doc.font('Helvetica').fontSize(8.5).fillColor('#334155').text(`  • ${segment.value} - ${segment.count} respostas (${segment.share}%) - maior risco: ${top}`);
           });
         });
       }
 
       const comparisons = (data.stats.institutionalComparison || []).filter((item: any) => item.relevant).slice(0, 4);
       doc.moveDown(0.8);
-      doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a').text('Comparativo institucional');
+      doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a').text('Comparativo Institucional');
       if (!comparisons.length) {
-        doc.font('Helvetica').fontSize(8).fillColor('#475569').text('Sem divergencia institucional relevante nas categorias calculadas.');
+        doc.font('Helvetica').fontSize(8.5).fillColor('#475569').text('Sem divergência institucional relevante nas categorias calculadas.');
       } else {
         comparisons.forEach((item: any) => {
-          doc.font('Helvetica').fontSize(8).fillColor('#334155').text(`${item.category}: colaboradores ${item.employeeRisk}% x institucional ${item.companyRisk}%. ${item.message}`);
+          doc.font('Helvetica').fontSize(8.5).fillColor('#334155').text(`  • ${item.category}: colaboradores ${item.employeeRisk}% x institucional ${item.companyRisk}%. ${item.message}`);
         });
       }
     }
 
-    sectionTitle('6. Cronograma de Acao');
+    sectionTitle('6. Cronograma de Ações');
     const criticalItems = data.stats.categoryAverages.filter((category) => category.risk > 40);
     if (!data.stats.minimumResponsesMet) {
       doc.font('Helvetica').fontSize(10).fillColor('#475569').text(
-        'O plano de acao sera gerado quando houver ao menos uma resposta de colaborador na campanha.'
+        'O plano de ação será gerado quando houver ao menos uma resposta de colaborador na campanha.'
       );
     } else if (!criticalItems.length) {
-      doc.font('Helvetica-Bold').fontSize(11).fillColor('#15803d').text('Nivel de risco controlado.');
+      doc.font('Helvetica-Bold').fontSize(11).fillColor('#15803d').text('Nível de risco controlado.');
       doc.font('Helvetica').fontSize(10).fillColor('#475569').text(
-        'Recomenda-se manter boas praticas, monitorar indicadores periodicamente e registrar evidencias de acoes preventivas no PGR.'
+        'Recomenda-se manter boas práticas, monitorar indicadores periodicamente e registrar evidências de ações preventivas no PGR.'
       );
     } else {
       doc.font('Helvetica').fontSize(10).fillColor('#334155').text(
-        'As datas de execucao devem ser definidas em conjunto com a empresa apos a apresentacao dos resultados.',
+        'As datas de execução devem ser definidas em conjunto com a empresa após a apresentação dos resultados.',
         { align: 'justify', lineGap: 2 }
       );
       doc.moveDown(0.8);
@@ -1584,13 +1634,13 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
         const problemWidth = 118;
         const actionWidth = 128;
         const monthWidth = (doc.page.width - doc.page.margins.left - doc.page.margins.right - problemWidth - actionWidth) / 12;
-        doc.rect(x, y, problemWidth, 31).fillAndStroke('#d9d9d9', '#8f8f8f');
-        doc.rect(x + problemWidth, y, actionWidth, 31).fillAndStroke('#d9d9d9', '#8f8f8f');
-        doc.font('Helvetica-Bold').fontSize(7).fillColor('#343434').text('Problema encontrado', x + 4, y + 10, { width: problemWidth - 8, align: 'center' });
-        doc.text('Acao sugerida', x + problemWidth + 4, y + 10, { width: actionWidth - 8, align: 'center' });
+        doc.rect(x, y, problemWidth, 31).fillAndStroke('#f1f5f9', '#cbd5e1');
+        doc.rect(x + problemWidth, y, actionWidth, 31).fillAndStroke('#f1f5f9', '#cbd5e1');
+        doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#334155').text('Problema encontrado', x + 4, y + 10, { width: problemWidth - 8, align: 'center' });
+        doc.text('Ação sugerida', x + problemWidth + 4, y + 10, { width: actionWidth - 8, align: 'center' });
         actionMonths.forEach((month, index) => {
           const cellX = x + problemWidth + actionWidth + index * monthWidth;
-          doc.rect(cellX, y, monthWidth, 31).fillAndStroke('#d9d9d9', '#8f8f8f');
+          doc.rect(cellX, y, monthWidth, 31).fillAndStroke('#f1f5f9', '#cbd5e1');
           doc.text(`${month.label}\n${month.year}`, cellX + 1, y + 7, { width: monthWidth - 2, align: 'center' });
         });
         doc.y = y + 31;
@@ -1600,38 +1650,41 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
       let widths = drawActionHeader();
       criticalItems.forEach((item) => {
         const recommendation: any = recommendationsByCategory.get(normalizeRiskKey(item.name));
-        if (doc.y + 38 > pageBottom()) {
+        if (doc.y + 40 > pageBottom()) {
           doc.addPage();
+          drawHeader();
           widths = drawActionHeader();
         }
         const x = doc.page.margins.left;
         const y = doc.y;
         const problem = `${item.name}: risco ${item.risk}%`;
-        const action = sentenceCase(shortText(recommendation?.what || 'Definir acao preventiva para o fator identificado', 70));
-        doc.rect(x, y, widths.problemWidth, 38).stroke('#8f8f8f');
-        doc.rect(x + widths.problemWidth, y, widths.actionWidth, 38).stroke('#8f8f8f');
-        doc.font('Helvetica-Bold').fontSize(7).fillColor('#343434').text(shortText(problem, 74), x + 4, y + 8, { width: widths.problemWidth - 8 });
-        doc.text(action, x + widths.problemWidth + 4, y + 8, { width: widths.actionWidth - 8 });
+        const action = sentenceCase(shortText(recommendation?.what || 'Definir ação preventiva para o fator identificado', 70));
+        
+        doc.rect(x, y, widths.problemWidth, 38).stroke('#cbd5e1');
+        doc.rect(x + widths.problemWidth, y, widths.actionWidth, 38).stroke('#cbd5e1');
+        doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#0f172a').text(shortText(problem, 74), x + 4, y + 8, { width: widths.problemWidth - 8 });
+        doc.font('Helvetica').fontSize(7).fillColor('#334155').text(action, x + widths.problemWidth + 4, y + 8, { width: widths.actionWidth - 8 });
+        
         actionMonths.forEach((_, index) => {
           const cellX = x + widths.problemWidth + widths.actionWidth + index * widths.monthWidth;
-          doc.rect(cellX, y, widths.monthWidth, 38).stroke('#8f8f8f');
+          doc.rect(cellX, y, widths.monthWidth, 38).stroke('#cbd5e1');
         });
         doc.y = y + 38;
       });
     }
 
     sectionTitle('7. Assinaturas');
-    doc.moveDown(2);
+    doc.moveDown(2.5);
     const signatureY = doc.y;
     doc.moveTo(70, signatureY).lineTo(245, signatureY).strokeColor('#cbd5e1').stroke();
     doc.moveTo(340, signatureY).lineTo(515, signatureY).strokeColor('#cbd5e1').stroke();
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a').text('Consultoria Tecnica - Ventura', 70, signatureY + 8, { width: 175, align: 'center' });
+    doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a').text('Consultoria Técnica - Ventura', 70, signatureY + 8, { width: 175, align: 'center' });
     doc.text('Representante da Empresa', 340, signatureY + 8, { width: 175, align: 'center' });
 
-    doc.font('Helvetica').fontSize(8).fillColor('#343434').text(
-      'Documento tecnico complementar ao PGR',
+    doc.font('Helvetica').fontSize(7.5).fillColor('#64748b').text(
+      'Documento técnico complementar ao PGR',
       48,
-      doc.page.height - 58,
+      doc.page.height - 45,
       { align: 'center', width: doc.page.width - 96 }
     );
     doc.end();
