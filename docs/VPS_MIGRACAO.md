@@ -341,6 +341,8 @@ Antes da fase 4, cada campanha importada da VPS deve ser classificada sem escrit
 - `legacy_scores_only`: possui empresa, campanha e `employee_responses.scores` por categoria, mas sem questionario/metadados confiaveis. Gera relatorio util em modo legado agregado, com evidencias marcadas como "Evidencia agregada legada".
 - `insufficient_for_report`: nao possui `scores` nem metadados suficientes para recalculo. Deve ser preservada como amostra bruta, mas nao deve gerar risco, inventario ou plano de acao ate enriquecimento ou nova coleta.
 
+Regra de separacao: `company_responses.scores` nao devem entrar na media coletiva dos trabalhadores. Esses scores representam a percepcao institucional e devem ser usados apenas no comparativo institucional contra as medias de `employee_responses`.
+
 Observacao para microempresas: quando `numero_colaboradores` for menor que 5, a campanha nao deve ser tratada como pesquisa anonima coletiva. A importacao deve preservar respostas e scores, mas o relatorio operacional deve usar modo microempresa, com avaliacao institucional/tecnica e sem score por categoria derivado diretamente das respostas individuais.
 
 Plano read-only recomendado para a VPS:

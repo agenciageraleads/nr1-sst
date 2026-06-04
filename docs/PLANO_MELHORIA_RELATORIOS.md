@@ -172,6 +172,8 @@ O relatorio completo deve aproveitar as amostras ja coletadas no banco da VPS se
 
 Esse modo legado preserva a amostra existente e evita inventar rastreabilidade por pergunta quando o banco antigo nao tem esses metadados. O texto exibido no relatorio deve deixar claro que a evidencia foi calculada a partir do score medio ja coletado na categoria. Na migracao da VPS, a regra e nao sobrescrever `answers`, `scores` ou questionarios antigos; qualquer enriquecimento deve ser aditivo.
 
+As medias coletivas por categoria devem ser calculadas somente a partir de `employee_responses`. Scores de `company_responses` representam a visao institucional e devem aparecer apenas no comparativo institucional; eles nao podem ser somados como se fossem mais uma resposta de colaborador, pois isso pode criar categorias agregadas legadas artificiais no inventario.
+
 Para empresas com menos de 5 colaboradores, nao existe anonimato estatistico suficiente para transformar respostas individuais em score coletivo anonimo. Nesses casos, o produto deve seguir um modo microempresa: relatorio metodologico, avaliacao institucional, observacao tecnica, entrevista qualificada ou checklist aplicado por responsavel tecnico, sem expor medias por categoria derivadas diretamente das respostas dos trabalhadores.
 
 ### Obrigatorios Para O MVP

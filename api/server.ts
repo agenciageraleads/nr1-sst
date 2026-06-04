@@ -564,6 +564,10 @@ function calculateCategoryAverages(responses: any[]) {
     .sort((a, b) => b.risk - a.risk);
 }
 
+function calculateEmployeeCategoryAverages(employeeResponses: any[]) {
+  return calculateCategoryAverages(employeeResponses);
+}
+
 function defaultEmployeeEvidenceQuestions(): ScorableQuestion[] {
   return DEFAULT_EMPLOYEE_QUESTIONS.map((question) => ({
     questionKey: question.questionKey,
@@ -1173,10 +1177,7 @@ async function getPublicStats(campaignId: string, minEmployeeResponses: number, 
   const employeeResponsesCount = employeeCount.rows[0]?.count || 0;
   const privacy = privacySummary(employeeResponsesCount, minEmployeeResponses, parseEmployeeCapacity(companyContext.rows[0]?.numero_colaboradores));
   const minimumResponsesMet = privacy.minimumResponsesMet;
-  const scoredRows = companyResponse.rows[0]?.scores
-    ? [...employeeRows.rows, { scores: companyResponse.rows[0].scores }]
-    : employeeRows.rows;
-  const categoryAverages = minimumResponsesMet ? calculateCategoryAverages(scoredRows) : [];
+  const categoryAverages = minimumResponsesMet ? calculateEmployeeCategoryAverages(employeeRows.rows) : [];
   const evidenceQuestions = minimumResponsesMet && options.includeReportDetails
     ? await getEmployeeEvidenceQuestions(campaignResult.rows[0], employeeRows.rows)
     : [];
@@ -2111,8 +2112,7 @@ app.get('/results/:campaignId', requireAuth, asyncHandler(async (req, res) => {
   ]);
   const latestCompanyResponse = companyResponses.rows[0];
   const privacy = privacySummary(responses.rowCount || 0, settings.minEmployeeResponses, parseEmployeeCapacity(campaign.rows[0]?.numero_colaboradores));
-  const scoredRows = latestCompanyResponse?.scores ? [...responses.rows, { scores: latestCompanyResponse.scores }] : responses.rows;
-  const categoryAverages = privacy.analysisAllowed ? calculateCategoryAverages(scoredRows) : [];
+  const categoryAverages = privacy.analysisAllowed ? calculateEmployeeCategoryAverages(responses.rows) : [];
   const evidenceQuestions = privacy.analysisAllowed ? await getEmployeeEvidenceQuestions(campaign.rows[0], responses.rows) : [];
   const rawEvidence = privacy.analysisAllowed
     ? calculateEmployeeEvidence(evidenceQuestions, responses.rows)
@@ -2167,8 +2167,7 @@ app.get('/reports/:campaignId', requireAuth, asyncHandler(async (req, res) => {
   const companyResponses = await pool.query('select * from company_responses where campaign_id=$1 order by submitted_at desc', [req.params.campaignId]);
   const latestCompanyResponse = companyResponses.rows[0];
   const privacy = privacySummary(responses.rowCount || 0, settings.minEmployeeResponses, parseEmployeeCapacity(company.rows[0]?.numero_colaboradores));
-  const scoredRows = latestCompanyResponse?.scores ? [...responses.rows, { scores: latestCompanyResponse.scores }] : responses.rows;
-  const categoryAverages = privacy.analysisAllowed ? calculateCategoryAverages(scoredRows) : [];
+  const categoryAverages = privacy.analysisAllowed ? calculateEmployeeCategoryAverages(responses.rows) : [];
   const evidenceQuestions = privacy.analysisAllowed ? await getEmployeeEvidenceQuestions(campaign.rows[0], responses.rows) : [];
   const rawEvidence = privacy.analysisAllowed
     ? calculateEmployeeEvidence(evidenceQuestions, responses.rows)
