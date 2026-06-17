@@ -1991,7 +1991,7 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
     const signatureY = doc.y;
     doc.moveTo(70, signatureY).lineTo(245, signatureY).strokeColor('#cbd5e1').stroke();
     doc.moveTo(340, signatureY).lineTo(515, signatureY).strokeColor('#cbd5e1').stroke();
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a').text('Consultoria Técnica - Ventura', 70, signatureY + 8, { width: 175, align: 'center' });
+    doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a').text('Responsável Técnico', 70, signatureY + 8, { width: 175, align: 'center' });
     doc.text('Representante da Empresa', 340, signatureY + 8, { width: 175, align: 'center' });
 
     doc.font('Helvetica').fontSize(7.5).fillColor('#64748b').text(
