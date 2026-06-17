@@ -1445,7 +1445,7 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
 
     const drawHeader = () => {
       doc.font('Helvetica-Bold').fontSize(7).fillColor('#16a34a').text('VENTURA SST', 48, 25);
-      doc.font('Helvetica').fontSize(7).fillColor('#64748b').text('INVENTÁRIO DE RISCOS PSICOSSOCIAIS', 0, 25, { align: 'right', width: doc.page.width - 48 });
+      doc.font('Helvetica').fontSize(7).fillColor('#64748b').text('RELATÓRIO DE DIAGNÓSTICO DOS RISCOS PSICOSSOCIAIS', 0, 25, { align: 'right', width: doc.page.width - 48 });
       doc.moveTo(48, 36).lineTo(doc.page.width - 48, 36).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
       doc.y = 48;
     };
@@ -1478,6 +1478,261 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
       date.setMonth(date.getMonth() + index);
       return { label: monthLabels[date.getMonth()], year: date.getFullYear() };
     });
+    const riskCatalog = [
+      {
+        name: 'Assédio de qualquer natureza',
+        aliases: ['Assédio de qualquer natureza', 'Assédio e violência'],
+        sources: 'condutas desrespeitosas; ausência de canal confiável; liderança despreparada; comunicação agressiva.',
+      },
+      {
+        name: 'Falta de suporte ou apoio no trabalho',
+        aliases: ['Falta de suporte ou apoio no trabalho'],
+        sources: 'liderança pouco disponível; baixa escuta; falta de orientação; recursos ou informações insuficientes.',
+      },
+      {
+        name: 'Má gestão de mudanças organizacionais',
+        aliases: ['Má gestão de mudanças organizacionais'],
+        sources: 'mudanças sem comunicação prévia; baixa participação; planejamento insuficiente; insegurança sobre impactos.',
+      },
+      {
+        name: 'Baixa clareza de papel ou função',
+        aliases: ['Baixa clareza de papel ou função'],
+        sources: 'responsabilidades pouco definidas; prioridades conflitantes; ordens contraditórias; limites de atuação imprecisos.',
+      },
+      {
+        name: 'Baixas recompensas e reconhecimento',
+        aliases: ['Baixas recompensas e reconhecimento'],
+        sources: 'feedback raro; critérios pouco transparentes; valorização insuficiente; poucas oportunidades de desenvolvimento.',
+      },
+      {
+        name: 'Baixo controle no trabalho ou falta de autonomia',
+        aliases: ['Baixo controle no trabalho ou falta de autonomia'],
+        sources: 'microgestão; decisões centralizadas; baixa participação em melhorias; pouca margem para organizar a rotina.',
+      },
+      {
+        name: 'Baixa justiça organizacional',
+        aliases: ['Baixa justiça organizacional'],
+        sources: 'critérios pouco claros; percepção de favorecimento; distribuição desigual de tarefas; decisões pouco explicadas.',
+      },
+      {
+        name: 'Eventos violentos ou traumáticos',
+        aliases: ['Eventos violentos ou traumáticos'],
+        sources: 'exposição a ameaças ou perigo; falhas em protocolos de segurança; ausência de acolhimento pós-evento.',
+      },
+      {
+        name: 'Baixa demanda no trabalho (subcarga)',
+        aliases: ['Baixa demanda de trabalho ou subcarga'],
+        sources: 'ociosidade; subutilização de competências; tarefas pouco desafiadoras; má distribuição de atividades.',
+      },
+      {
+        name: 'Excesso de demandas no trabalho (sobrecarga)',
+        aliases: ['Alta demanda de trabalho ou sobrecarga psicológica', 'Sobrecarga e ritmo'],
+        sources: 'metas pouco realistas; equipe insuficiente; pressão de tempo; acúmulo de funções ou picos sem apoio.',
+      },
+      {
+        name: 'Maus relacionamentos no local de trabalho',
+        aliases: ['Conflitos interpessoais', 'Relações interpessoais'],
+        sources: 'conflitos recorrentes; comunicação defensiva; rivalidade interna; baixa mediação pela liderança.',
+      },
+      {
+        name: 'Jornada de trabalho inadequada ou extensiva',
+        aliases: ['Jornada de trabalho inadequada ou extensiva'],
+        sources: 'horas extras recorrentes; pausas insuficientes; dificuldade de recuperação; desequilíbrio entre trabalho e vida pessoal.',
+      },
+      {
+        name: 'Conflito de valores no trabalho',
+        aliases: ['Conflito de valores no trabalho'],
+        sources: 'pressão para agir contra princípios; incoerência entre discurso e prática; medo de questionar condutas inadequadas.',
+      },
+    ];
+    const matrixRiskLabel = (risk: number | null) => {
+      if (risk === null) return { gravity: 'Não avaliada', probability: 'Não avaliada', matrix: 'Não avaliado', color: '#64748b' };
+      if (risk >= 76) return { gravity: 'Alta', probability: 'Alta', matrix: 'Crítico', color: '#dc2626' };
+      if (risk >= 61) return { gravity: 'Alta', probability: 'Média', matrix: 'Alto', color: '#d97706' };
+      if (risk >= 41) return { gravity: 'Média', probability: 'Média', matrix: 'Médio', color: '#ca8a04' };
+      return { gravity: 'Baixa', probability: 'Baixa', matrix: 'Baixo', color: '#16a34a' };
+    };
+    const findCategoryForRisk = (risk: typeof riskCatalog[number], categories = data.stats.categoryAverages || []) => {
+      return categories.find((category: any) => {
+        const categoryKey = normalizeRiskKey(String(category.name || ''));
+        return risk.aliases.some((alias) => {
+          const aliasKey = normalizeRiskKey(alias);
+          return categoryKey === aliasKey || categoryKey.includes(aliasKey) || aliasKey.includes(categoryKey);
+        });
+      }) || null;
+    };
+    const drpsRowsForCategories = (categories = data.stats.categoryAverages || []) => riskCatalog.map((risk) => {
+      const category: any = findCategoryForRisk(risk, categories);
+      const classification = matrixRiskLabel(category ? Number(category.risk || 0) : null);
+      return {
+        risk,
+        category,
+        classification,
+      };
+    });
+    const paragraph = (text: string) => {
+      doc.font('Helvetica').fontSize(9.5).fillColor('#334155').text(text, doc.page.margins.left, doc.y, {
+        width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+        align: 'justify',
+        lineGap: 2.5,
+      });
+      doc.moveDown(0.7);
+    };
+    const paragraphHeight = (text: string, fontSize = 9.5, lineGap = 2.5) => {
+      doc.font('Helvetica').fontSize(fontSize);
+      return doc.heightOfString(text, {
+        width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+        align: 'justify',
+        lineGap,
+      }) + 12;
+    };
+    const tableTextHeight = (text: string, width: number, fontSize = 6.6) => {
+      doc.font('Helvetica').fontSize(fontSize);
+      return doc.heightOfString(String(text || ''), { width, lineGap: 0.6 });
+    };
+    const estimateTableHeight = (rows: string[][], widths: number[], fontSize = 6.6) => {
+      const headerHeight = 22;
+      return rows.reduce((total, row) => {
+        const rowHeight = Math.max(24, ...row.map((cell, index) => tableTextHeight(cell, widths[index] - 8, fontSize) + 12));
+        return total + rowHeight;
+      }, headerHeight + 10);
+    };
+    const matrixCellColor = (value: string) => {
+      const normalized = normalizeRiskKey(value);
+      if (normalized === 'baixo') return '#dcfce7';
+      if (normalized === 'medio') return '#fef3c7';
+      if (normalized === 'alto' || normalized === 'critico') return '#fee2e2';
+      return null;
+    };
+    const matrixCellTextColor = (value: string) => {
+      const normalized = normalizeRiskKey(value);
+      if (normalized === 'baixo') return '#166534';
+      if (normalized === 'medio') return '#92400e';
+      if (normalized === 'alto' || normalized === 'critico') return '#991b1b';
+      return '#334155';
+    };
+    const drawTable = (headers: string[], rows: string[][], widths: number[], fontSize = 6.6, options: { colorLastColumn?: boolean; keepTogether?: boolean; centerColumns?: number[] } = {}) => {
+      const headerHeight = 22;
+      const drawHeaderRow = () => {
+        let x = doc.page.margins.left;
+        const y = doc.y;
+        headers.forEach((header, index) => {
+          doc.rect(x, y, widths[index], headerHeight).fillAndStroke('#f1f5f9', '#cbd5e1');
+          doc.font('Helvetica-Bold').fontSize(fontSize).fillColor('#334155').text(header, x + 4, y + 7, { width: widths[index] - 8, align: index >= headers.length - 3 ? 'center' : 'left' });
+          x += widths[index];
+        });
+        doc.y = y + headerHeight;
+      };
+
+      const estimatedHeight = estimateTableHeight(rows, widths, fontSize);
+      if (options.keepTogether && doc.y + estimatedHeight > pageBottom()) {
+        doc.addPage();
+        drawHeader();
+      } else {
+        ensureSpace(headerHeight + 20);
+      }
+      drawHeaderRow();
+      rows.forEach((row) => {
+        const rowHeight = Math.max(24, ...row.map((cell, index) => tableTextHeight(cell, widths[index] - 8, fontSize) + 12));
+        if (!options.keepTogether && doc.y + rowHeight > pageBottom()) {
+          doc.addPage();
+          drawHeader();
+          drawHeaderRow();
+        }
+        let x = doc.page.margins.left;
+        const y = doc.y;
+        row.forEach((cell, index) => {
+          const isColoredMatrixCell = Boolean(options.colorLastColumn && index === row.length - 1);
+          const isCenteredColumn = Boolean(options.centerColumns?.includes(index));
+          const fillColor = isColoredMatrixCell ? matrixCellColor(cell) : null;
+          const cellTextHeight = tableTextHeight(cell, widths[index] - 8, fontSize);
+          if (fillColor) {
+            doc.rect(x, y, widths[index], rowHeight).fillAndStroke(fillColor, '#cbd5e1');
+          } else {
+            doc.rect(x, y, widths[index], rowHeight).stroke('#cbd5e1');
+          }
+          doc.font(index >= row.length - 3 || isCenteredColumn ? 'Helvetica-Bold' : 'Helvetica').fontSize(fontSize).fillColor(isColoredMatrixCell ? matrixCellTextColor(cell) : '#334155').text(cell, x + 4, y + Math.max(6, (rowHeight - cellTextHeight) / 2), {
+            width: widths[index] - 8,
+            align: index >= row.length - 3 || isCenteredColumn ? 'center' : 'left',
+            lineGap: 0.6,
+          });
+          x += widths[index];
+        });
+        doc.y = y + rowHeight;
+      });
+      doc.x = doc.page.margins.left;
+      doc.moveDown(0.8);
+    };
+    const drawDrpsRiskTable = (categories = data.stats.categoryAverages || []) => {
+      const availableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+      const widths = [126, availableWidth - 126 - 55 - 64 - 56, 55, 64, 56];
+      const rows = drpsRowsForCategories(categories).map((item) => [
+        item.risk.name,
+        item.risk.sources,
+        item.classification.gravity,
+        item.classification.probability,
+        item.classification.matrix,
+      ]);
+      drawTable(['Fatores de Risco', 'Fontes Geradoras do Risco', 'Gravidade', 'Probabilidade', 'Matriz Risco'], rows, widths, 6.25, { colorLastColumn: true, keepTogether: true });
+    };
+    const drpsRiskTableHeight = (categories = data.stats.categoryAverages || []) => {
+      const availableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+      const widths = [126, availableWidth - 126 - 55 - 64 - 56, 55, 64, 56];
+      const rows = drpsRowsForCategories(categories).map((item) => [
+        item.risk.name,
+        item.risk.sources,
+        item.classification.gravity,
+        item.classification.probability,
+        item.classification.matrix,
+      ]);
+      return estimateTableHeight(rows, widths, 6.25);
+    };
+    const drawAnnualPlan = () => {
+      const actions = [
+        'Relatório de Diagnóstico dos Riscos Psicossociais',
+        'Programa de apoio psicológico e acolhimento',
+        'Programa de gestão do estresse e prevenção ao burnout',
+        'Capacitação de lideranças para gestão psicossocial',
+        'Prevenção ao assédio moral, sexual e organizacional',
+        'Avaliação e acompanhamento de clima organizacional',
+        'Comunicação assertiva e não agressiva',
+        'Equilíbrio entre vida pessoal, jornada e demandas',
+        'Treinamento de RH para acompanhamento da NR 01',
+      ];
+      const availableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+      const actionWidth = 174;
+      const monthWidth = (availableWidth - actionWidth) / 12;
+      ensureSpace(38 + actions.length * 24);
+      const startX = doc.page.margins.left;
+      let y = doc.y;
+      doc.rect(startX, y, actionWidth, 30).fillAndStroke('#f1f5f9', '#cbd5e1');
+      doc.font('Helvetica-Bold').fontSize(6.3).fillColor('#334155').text('Ação de prevenção e controle', startX + 4, y + 10, { width: actionWidth - 8, align: 'center' });
+      actionMonths.forEach((month, index) => {
+        const x = startX + actionWidth + index * monthWidth;
+        doc.rect(x, y, monthWidth, 30).fillAndStroke('#f1f5f9', '#cbd5e1');
+        doc.font('Helvetica-Bold').fontSize(5.4).fillColor('#334155').text(month.label, x + 1, y + 8, { width: monthWidth - 2, align: 'center' });
+        doc.text(String(month.year), x + 1, y + 17, { width: monthWidth - 2, align: 'center' });
+      });
+      y += 30;
+      actions.forEach((action, rowIndex) => {
+        if (y + 24 > pageBottom()) {
+          doc.addPage();
+          drawHeader();
+          y = doc.y;
+        }
+        doc.rect(startX, y, actionWidth, 24).stroke('#cbd5e1');
+        doc.font('Helvetica').fontSize(6.1).fillColor('#334155').text(action, startX + 4, y + 6, { width: actionWidth - 8 });
+        actionMonths.forEach((_, index) => {
+          const x = startX + actionWidth + index * monthWidth;
+          doc.rect(x, y, monthWidth, 24).stroke('#cbd5e1');
+          if ((rowIndex === 0 && index === 0) || (rowIndex > 0 && index >= 1 && index <= 3)) {
+            doc.circle(x + monthWidth / 2, y + 12, 2).fill('#16a34a');
+          }
+        });
+        y += 24;
+      });
+      doc.y = y + 10;
+    };
 
     // ==========================================
     // C A P A   D O   R E L A T Ó R I O   (Pág 1)
@@ -1493,8 +1748,8 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
 
     // Title Block
     doc.y = 210;
-    doc.font('Helvetica-Bold').fontSize(28).fillColor('#0f172a').text('INVENTÁRIO DE RISCOS', 48);
-    doc.font('Helvetica-Bold').fontSize(28).fillColor('#16a34a').text('PSICOSSOCIAIS', 48);
+    doc.font('Helvetica-Bold').fontSize(27).fillColor('#0f172a').text('RELATÓRIO DE DIAGNÓSTICO', 48);
+    doc.font('Helvetica-Bold').fontSize(27).fillColor('#16a34a').text('DOS RISCOS PSICOSSOCIAIS', 48);
     doc.moveDown(0.3);
     doc.font('Helvetica').fontSize(14).fillColor('#64748b').text('DIAGNÓSTICO PREVENTIVO NR-01', 48);
 
@@ -1537,143 +1792,201 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
     labelValue('Participantes', `${data.stats.employeeResponsesCount} colaboradores`);
     labelValue('Formulário institucional', data.stats.companyResponseSubmitted ? 'Recebido' : 'Pendente');
 
-    sectionTitle('3. Metodologia e Privacidade');
-    doc.font('Helvetica').fontSize(10).fillColor('#334155').text(
-      'Este diagnóstico consolida respostas institucionais e percepções coletivas dos colaboradores para apoiar a identificação, avaliação e mitigação de fatores psicossociais relacionados ao trabalho, preservando o anonimato individual conforme boas práticas de LGPD.',
-      { align: 'justify', lineGap: 3 }
+    sectionTitle('3. Natureza e Finalidade do Instrumento');
+    paragraph(
+      'O Relatório de Diagnóstico dos Riscos Psicossociais é um instrumento técnico estruturado para rastreamento organizacional dos fatores psicossociais relacionados ao trabalho. Sua finalidade é apoiar a identificação, análise, classificação e priorização de riscos no âmbito do Gerenciamento de Riscos Ocupacionais, servindo como documento complementar ao PGR.'
     );
-    doc.moveDown(0.8);
-    doc.text(
-      'Os indicadores são calculados com as respostas disponíveis na campanha. O relatório não lista respostas individuais e apresenta recortes apenas como consolidação operacional dos dados coletados.',
-      { align: 'justify', lineGap: 3 }
+    paragraph(
+      'A avaliação possui caráter coletivo e preventivo. Os resultados não representam diagnóstico clínico individual, nem substituem avaliação psicológica, médica ou pericial quando houver necessidade específica. A leitura deve considerar o contexto organizacional, os setores avaliados, os controles existentes e as evidências técnicas disponíveis.'
     );
 
-    sectionTitle('4. Resultados Agregados');
-    if (!data.stats.minimumResponsesMet) {
-      doc.font('Helvetica-Bold').fontSize(11).fillColor('#b45309').text(
-        'Sem respostas de colaboradores.'
-      );
-      doc.font('Helvetica').fontSize(10).fillColor('#475569').text(
-        data.stats.privacy?.message || 'Colete ao menos uma resposta de colaborador antes de interpretar riscos por categoria.'
-      );
-    } else {
-      data.stats.categoryAverages.forEach((category) => {
-        ensureSpace(64);
-        const finding: any = technicalByCategory.get(normalizeRiskKey(category.name));
-        const barX = doc.x;
-        const barY = doc.y + 18;
-        const barWidth = 320;
-        const riskColor = category.risk > 60 ? '#dc2626' : category.risk > 40 ? '#d97706' : '#16a34a';
-        doc.font('Helvetica-Bold').fontSize(10).fillColor('#0f172a').text(category.name, barX, doc.y);
-        doc.font('Helvetica-Bold').fontSize(10).fillColor(riskColor).text(`${category.risk}% de risco`, barX + 360, doc.y - 12, { width: 110, align: 'right' });
-        
-        // Progress track & fill
-        doc.roundedRect(barX, barY, barWidth, 8, 4).fill('#e2e8f0');
-        doc.roundedRect(barX, barY, Math.max(8, (barWidth * category.risk) / 100), 8, 4).fill(riskColor);
-        doc.y = barY + 16;
-        if (finding?.riskMeaning) {
-          doc.font('Helvetica').fontSize(8.5).fillColor('#475569').text(finding.riskMeaning, { lineGap: 2 });
-        }
-        doc.y += 10;
-      });
+    sectionTitle('4. Fundamentação Teórica');
+    paragraph(
+      'A metodologia utilizada considera referenciais de saúde e segurança do trabalho, psicodinâmica do trabalho, modelos de estresse ocupacional, relação demanda-controle, equilíbrio esforço-recompensa, diretrizes nacionais sobre gerenciamento de riscos ocupacionais e recomendações internacionais sobre fatores psicossociais no trabalho.'
+    );
+    paragraph(
+      'A abordagem prioriza a análise das condições de trabalho, da organização do trabalho, das relações socioprofissionais, da comunicação, da liderança, da autonomia, das demandas e dos mecanismos de apoio disponíveis. O foco é compreender fatores coletivos que possam contribuir para adoecimento, sofrimento, conflitos, queda de desempenho, absenteísmo ou rotatividade.'
+    );
+
+    const sectionFiveIntro = 'O instrumento está organizado em 13 fatores de risco psicossocial, contemplando dimensões de assédio, suporte, mudanças organizacionais, clareza de papéis, reconhecimento, autonomia, justiça organizacional, eventos violentos ou traumáticos, subcarga, sobrecarga, relacionamentos, comunicação e trabalho remoto ou isolado.';
+    doc.addPage();
+    drawHeader();
+    sectionTitle('5. Estrutura do Instrumento');
+    paragraph(sectionFiveIntro);
+    drawTable(
+      ['Fator de risco psicossocial', 'Foco de análise'],
+      riskCatalog.map((risk) => [risk.name, risk.sources]),
+      [190, doc.page.width - doc.page.margins.left - doc.page.margins.right - 190],
+      6.7,
+      { keepTogether: true }
+    );
+
+    sectionTitle('6. Procedimentos de Coleta de Dados');
+    paragraph(
+      'A coleta é realizada por questionário estruturado em formato digital, com comunicação prévia sobre a finalidade coletiva da avaliação. O tratamento dos dados preserva o anonimato individual, utiliza resultados agregados e evita exposição de respostas pessoais ou identificação indevida dos participantes.'
+    );
+    paragraph(
+      'As respostas são registradas em escala padronizada, permitindo mensuração da frequência ou percepção dos fatores avaliados. Itens de natureza protetiva recebem tratamento invertido quando necessário, para que a pontuação final represente coerentemente o nível de exposição ao risco.'
+    );
+
+    sectionTitle('7. Análise Quantitativa - Gravidade');
+    paragraph(
+      'A gravidade é determinada por cálculo quantitativo das respostas, considerando médias por pergunta e por fator de risco. Cada fator recebe uma pontuação técnica, convertida para classificação operacional. Quanto maior a exposição indicada pelas respostas, maior a gravidade atribuída ao fator avaliado.'
+    );
+    paragraph(
+      'Para fins de leitura gerencial, a gravidade é apresentada em níveis como baixa, média ou alta, permitindo comparar os fatores de risco e identificar aqueles que exigem maior atenção preventiva.'
+    );
+
+    sectionTitle('8. Análise Qualitativa - Probabilidade');
+    paragraph(
+      'A probabilidade considera a chance de ocorrência ou recorrência do fator de risco no contexto organizacional. Essa leitura pode ser qualificada por frequência percebida, histórico de ocorrências, características do setor, existência e efetividade de controles, recursos de mitigação, entrevistas, observações e julgamento técnico do responsável pela avaliação.'
+    );
+    paragraph(
+      'A classificação da probabilidade não se limita ao número obtido no questionário. Ela integra a análise quantitativa com elementos qualitativos do ambiente de trabalho, permitindo uma leitura mais aderente à realidade da organização.'
+    );
+
+    const sectionNineIntro = 'A classificação final resulta do cruzamento entre gravidade e probabilidade, utilizando matriz compatível com a lógica da NR 01. O resultado é apresentado em quatro níveis principais: Baixo, Médio, Alto ou Crítico. Essa matriz orienta a priorização das ações preventivas e corretivas.';
+    const matrixRowsForDisplay = [
+      ['Baixa', 'Baixa', 'Baixo', 'Manter monitoramento e controles preventivos.'],
+      ['Baixa', 'Média/Alta', 'Médio', 'Reforçar controles e investigar causas setoriais.'],
+      ['Média/Alta', 'Média', 'Alto', 'Definir ação preventiva com responsável e prazo.'],
+      ['Alta', 'Alta', 'Crítico', 'Priorizar intervenção imediata e avaliação complementar.'],
+    ];
+    const matrixTableWidths = [82, 88, 64, doc.page.width - doc.page.margins.left - doc.page.margins.right - 234];
+    if (doc.y + 36 + paragraphHeight(sectionNineIntro) + estimateTableHeight(matrixRowsForDisplay, matrixTableWidths, 6.6) > pageBottom()) {
+      doc.addPage();
+      drawHeader();
     }
+    sectionTitle('9. Classificação do Risco');
+    paragraph(sectionNineIntro);
+    drawTable(['Gravidade', 'Probabilidade', 'Matriz', 'Conduta sugerida'], matrixRowsForDisplay, matrixTableWidths, 6.6, { colorLastColumn: false, keepTogether: true, centerColumns: [0] });
 
-    sectionTitle('5. Segmentação Anônima e Comparativo');
-    if (!data.stats.minimumResponsesMet) {
-      doc.font('Helvetica').fontSize(10).fillColor('#475569').text(
-        'Segmentações e comparativos aparecem assim que houver resposta de colaborador para calcular os recortes.'
-      );
-    } else {
-      const segmentations = (data.stats.segmentations || []).filter((item: any) => item.visibleGroups > 0 || item.hiddenGroups > 0);
-      if (!segmentations.length) {
-        doc.font('Helvetica').fontSize(10).fillColor('#475569').text('Nenhum recorte disponível nas respostas da campanha.');
-      } else {
-        segmentations.forEach((segmentation: any) => {
-          ensureSpace(48);
-          doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a').text(segmentation.label);
-          (segmentation.segments || []).slice(0, 3).forEach((segment: any) => {
-            const top = segment.topRiskCategory ? `${segment.topRiskCategory.name}: ${segment.topRiskCategory.risk}%` : 'sem risco calculado';
-            doc.font('Helvetica').fontSize(8.5).fillColor('#334155').text(`  • ${segment.value} - ${segment.count} respostas (${segment.share}%) - maior risco: ${top}`);
-          });
-        });
-      }
+    sectionTitle('10. Interpretação dos Resultados');
+    paragraph(
+      'Os resultados permitem identificar fatores prioritários, comparar níveis de exposição entre setores, subsidiar decisões de gestão, direcionar ações preventivas e acompanhar a evolução dos riscos psicossociais ao longo do tempo.'
+    );
+    paragraph(
+      'A interpretação deve observar a amostra disponível, a distribuição por setor, as condições reais de trabalho, os controles existentes e eventuais divergências entre percepção institucional e percepção coletiva dos trabalhadores.'
+    );
 
-      const comparisons = (data.stats.institutionalComparison || []).filter((item: any) => item.relevant).slice(0, 4);
-      doc.moveDown(0.8);
-      doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a').text('Comparativo Institucional');
-      if (!comparisons.length) {
-        doc.font('Helvetica').fontSize(8.5).fillColor('#475569').text('Sem divergência institucional relevante nas categorias calculadas.');
-      } else {
-        comparisons.forEach((item: any) => {
-          doc.font('Helvetica').fontSize(8.5).fillColor('#334155').text(`  • ${item.category}: colaboradores ${item.employeeRisk}% x institucional ${item.companyRisk}%. ${item.message}`);
-        });
-      }
+    sectionTitle('11. Limitações do Instrumento');
+    paragraph(
+      'Este relatório não possui finalidade diagnóstica clínica individual. Os resultados devem ser utilizados para análise organizacional e prevenção, podendo ser complementados por entrevistas técnicas, observação do trabalho, análise documental, indicadores de saúde ocupacional e avaliação especializada quando necessário.'
+    );
+    paragraph(
+      'Setores com pequena quantidade de respostas exigem cautela interpretativa. Nesses casos, os achados funcionam como sinais de atenção e devem ser confirmados por avaliação técnica complementar antes de conclusões definitivas ou exposição de recortes sensíveis.'
+    );
+
+    if (data.stats.minimumResponsesMet && doc.y + 42 + drpsRiskTableHeight(data.stats.categoryAverages || []) > pageBottom()) {
+      doc.addPage();
+      drawHeader();
     }
-
-    sectionTitle('6. Cronograma de Ações');
-    const criticalItems = data.stats.categoryAverages.filter((category) => category.risk > 40);
+    sectionTitle('12. Resultados Gerais dos 13 Riscos Psicossociais');
     if (!data.stats.minimumResponsesMet) {
+      doc.font('Helvetica-Bold').fontSize(11).fillColor('#b45309').text('Sem respostas suficientes de colaboradores.');
       doc.font('Helvetica').fontSize(10).fillColor('#475569').text(
-        'O plano de ação será gerado quando houver ao menos uma resposta de colaborador na campanha.'
-      );
-    } else if (!criticalItems.length) {
-      doc.font('Helvetica-Bold').fontSize(11).fillColor('#15803d').text('Nível de risco controlado.');
-      doc.font('Helvetica').fontSize(10).fillColor('#475569').text(
-        'Recomenda-se manter boas práticas, monitorar indicadores periodicamente e registrar evidências de ações preventivas no PGR.'
+        data.stats.privacy?.message || 'Colete respostas de colaboradores antes de interpretar riscos por categoria.'
       );
     } else {
-      doc.font('Helvetica').fontSize(10).fillColor('#334155').text(
-        'As datas de execução devem ser definidas em conjunto com a empresa após a apresentação dos resultados.',
+      drawDrpsRiskTable(data.stats.categoryAverages || []);
+      const elevated = drpsRowsForCategories(data.stats.categoryAverages || []).filter((item) => ['Médio', 'Alto', 'Crítico'].includes(item.classification.matrix));
+      doc.font('Helvetica').fontSize(9).fillColor('#475569').text(
+        elevated.length
+          ? `Os fatores com maior prioridade técnica nesta campanha são: ${elevated.map((item) => `${item.risk.name} (${item.classification.matrix})`).join('; ')}.`
+          : 'Os fatores avaliados permaneceram majoritariamente em nível baixo pela matriz consolidada. Recomenda-se manter monitoramento periódico e controles preventivos proporcionais.',
         { align: 'justify', lineGap: 2 }
       );
-      doc.moveDown(0.8);
-
-      const drawActionHeader = () => {
-        const x = doc.page.margins.left;
-        const y = doc.y;
-        const problemWidth = 118;
-        const actionWidth = 128;
-        const monthWidth = (doc.page.width - doc.page.margins.left - doc.page.margins.right - problemWidth - actionWidth) / 12;
-        doc.rect(x, y, problemWidth, 31).fillAndStroke('#f1f5f9', '#cbd5e1');
-        doc.rect(x + problemWidth, y, actionWidth, 31).fillAndStroke('#f1f5f9', '#cbd5e1');
-        doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#334155').text('Problema encontrado', x + 4, y + 10, { width: problemWidth - 8, align: 'center' });
-        doc.text('Ação sugerida', x + problemWidth + 4, y + 10, { width: actionWidth - 8, align: 'center' });
-        actionMonths.forEach((month, index) => {
-          const cellX = x + problemWidth + actionWidth + index * monthWidth;
-          doc.rect(cellX, y, monthWidth, 31).fillAndStroke('#f1f5f9', '#cbd5e1');
-          doc.text(`${month.label}\n${month.year}`, cellX + 1, y + 7, { width: monthWidth - 2, align: 'center' });
-        });
-        doc.y = y + 31;
-        return { problemWidth, actionWidth, monthWidth };
-      };
-
-      let widths = drawActionHeader();
-      criticalItems.forEach((item) => {
-        const recommendation: any = recommendationsByCategory.get(normalizeRiskKey(item.name));
-        if (doc.y + 40 > pageBottom()) {
-          doc.addPage();
-          drawHeader();
-          widths = drawActionHeader();
-        }
-        const x = doc.page.margins.left;
-        const y = doc.y;
-        const problem = `${item.name}: risco ${item.risk}%`;
-        const action = sentenceCase(shortText(recommendation?.what || 'Definir ação preventiva para o fator identificado', 70));
-        
-        doc.rect(x, y, widths.problemWidth, 38).stroke('#cbd5e1');
-        doc.rect(x + widths.problemWidth, y, widths.actionWidth, 38).stroke('#cbd5e1');
-        doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#0f172a').text(shortText(problem, 74), x + 4, y + 8, { width: widths.problemWidth - 8 });
-        doc.font('Helvetica').fontSize(7).fillColor('#334155').text(action, x + widths.problemWidth + 4, y + 8, { width: widths.actionWidth - 8 });
-        
-        actionMonths.forEach((_, index) => {
-          const cellX = x + widths.problemWidth + widths.actionWidth + index * widths.monthWidth;
-          doc.rect(cellX, y, widths.monthWidth, 38).stroke('#cbd5e1');
-        });
-        doc.y = y + 38;
-      });
     }
 
-    sectionTitle('7. Assinaturas');
+    const sectorSegmentation = data.stats.minimumResponsesMet
+      ? (data.stats.segmentations || []).find((item: any) => item.key === 'sector')
+      : null;
+    const sectors = data.stats.minimumResponsesMet
+      ? ((sectorSegmentation?.segments || []).filter((segment: any) => segment.count > 0))
+      : [];
+    if (sectors.length && doc.y + 105 + drpsRiskTableHeight(sectors[0].categories || []) > pageBottom()) {
+      doc.addPage();
+      drawHeader();
+    }
+    sectionTitle('13. Análises e Resultados por Setor');
+    if (!data.stats.minimumResponsesMet) {
+      doc.font('Helvetica').fontSize(10).fillColor('#475569').text(
+        'A análise por setor será exibida quando houver respostas suficientes para compor os recortes da campanha.'
+      );
+    } else {
+      if (!sectors.length) {
+        doc.font('Helvetica').fontSize(10).fillColor('#475569').text('Nenhum recorte setorial foi informado nas respostas da campanha.');
+      } else {
+        sectors.forEach((segment: any, index: number) => {
+          if (index > 0) {
+            doc.addPage();
+            drawHeader();
+          } else {
+            ensureSpace(145);
+          }
+          doc.x = doc.page.margins.left;
+          doc.font('Helvetica-Bold').fontSize(10).fillColor('#0f172a').text(`13.${index + 1}. Setor: ${segment.value}`, doc.page.margins.left, doc.y);
+          doc.font('Helvetica').fontSize(8.8).fillColor('#334155').text(`Quantidade de respostas no recorte: ${segment.count} (${segment.share}% da amostra).`, doc.page.margins.left, doc.y);
+          doc.font('Helvetica').fontSize(8.8).fillColor('#334155').text(
+            segment.topRiskCategory
+              ? `Principal ponto de atenção: ${segment.topRiskCategory.name}, com risco estimado de ${segment.topRiskCategory.risk}%.`
+              : 'Sem risco calculado para este recorte.',
+            doc.page.margins.left,
+            doc.y
+          );
+          doc.moveDown(0.5);
+          drawDrpsRiskTable(segment.categories || []);
+          const topRisk = segment.topRiskCategory;
+          doc.font('Helvetica').fontSize(8.8).fillColor('#475569').text(
+            topRisk
+              ? `Leitura técnica: o recorte deve ser acompanhado prioritariamente no fator ${topRisk.name}. A interpretação deve considerar o tamanho da amostra e pode ser complementada por entrevista técnica, observação do trabalho e análise dos controles existentes.`
+              : 'Leitura técnica: não foram identificados fatores suficientes para priorização neste recorte.',
+            { align: 'justify', lineGap: 2 }
+          );
+          doc.moveDown(0.8);
+        });
+      }
+    }
+
+    sectionTitle('14. Conclusão Técnica');
+    if (!data.stats.minimumResponsesMet) {
+      paragraph('Ainda não há base coletiva suficiente para concluir a classificação dos riscos psicossociais da campanha. Recomenda-se ampliar a coleta e emitir nova versão após atingir a amostra mínima definida.');
+    } else {
+      const matrixRows = drpsRowsForCategories(data.stats.categoryAverages || []);
+      const prioritized = matrixRows.filter((item) => ['Médio', 'Alto', 'Crítico'].includes(item.classification.matrix));
+      paragraph(
+        prioritized.length
+          ? `A avaliação indica fatores que exigem acompanhamento prioritário: ${prioritized.map((item) => `${item.risk.name} (${item.classification.matrix})`).join('; ')}. Esses resultados devem orientar ações preventivas, revisão dos controles existentes e monitoramento por indicadores.`
+          : 'A avaliação consolidada não indicou fatores em nível médio, alto ou crítico. O cenário geral sugere controle preventivo, com recomendação de manter monitoramento, reforçar canais de escuta e revisar periodicamente os fatores psicossociais.'
+      );
+      paragraph(
+        'A interpretação deve permanecer vinculada ao contexto organizacional. Sempre que houver setores com baixa amostra, histórico de eventos, relatos sensíveis ou divergências institucionais, recomenda-se validação complementar por responsável técnico habilitado.'
+      );
+    }
+
+    sectionTitle('15. Fluxo de Aplicação do Relatório');
+    paragraph(
+      'O processo de aplicação contempla alinhamento inicial com a organização, definição dos setores avaliados, comunicação aos trabalhadores, aplicação do questionário, consolidação quantitativa dos dados, análise técnica qualitativa, cruzamento em matriz de risco, emissão do relatório e definição de ações preventivas proporcionais aos resultados.'
+    );
+    paragraph(
+      'Esse fluxo confere rastreabilidade ao diagnóstico, preserva a confidencialidade das informações e favorece o uso do relatório como ferramenta de gestão contínua dos riscos psicossociais.'
+    );
+
+    sectionTitle('16. Referências Técnicas');
+    const referenceRows = [
+      ['NR 01 - Disposições Gerais e Gerenciamento de Riscos Ocupacionais.'],
+      ['Ministério do Trabalho e Emprego - orientações sobre fatores psicossociais relacionados ao trabalho.'],
+      ['Organização Internacional do Trabalho - prevenção de riscos psicossociais no trabalho.'],
+      ['Organização Mundial da Saúde - saúde mental, trabalho e fatores de proteção.'],
+      ['ISO 45001 - Sistemas de gestão de saúde e segurança ocupacional.'],
+      ['Referenciais de psicodinâmica do trabalho, estresse ocupacional e modelos demanda-controle/esforço-recompensa.'],
+    ];
+    drawTable(['Referências utilizadas como base técnica'], referenceRows, [doc.page.width - doc.page.margins.left - doc.page.margins.right], 7.2);
+
+    sectionTitle('17. Plano Anual de Implementação da NR 01');
+    drawAnnualPlan();
+
+    sectionTitle('18. Assinaturas');
     doc.moveDown(2.5);
     const signatureY = doc.y;
     doc.moveTo(70, signatureY).lineTo(245, signatureY).strokeColor('#cbd5e1').stroke();
