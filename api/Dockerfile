@@ -10,4 +10,5 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package*.json ./
 COPY api ./api
 COPY shared ./shared
+COPY public ./public
 CMD ["npx", "tsx", "api/server.ts"]
