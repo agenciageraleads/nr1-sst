@@ -1427,6 +1427,52 @@ async function buildReportData(publicToken: string) {
   };
 }
 
+async function buildCampaignReportData(campaignId: string) {
+  const [settings, campaignResult] = await Promise.all([
+    getReportSettings(),
+    pool.query('select * from campaigns where id = $1', [campaignId]),
+  ]);
+  const campaignRow = campaignResult.rows[0];
+  if (!campaignRow) return null;
+
+  const [companyResult, companyResponse, stats] = await Promise.all([
+    pool.query('select * from companies where id = $1', [campaignRow.company_id]),
+    pool.query(
+      'select answers, submitted_at from company_responses where campaign_id = $1 order by submitted_at desc limit 1',
+      [campaignRow.id]
+    ),
+    getPublicStats(campaignRow.id, settings.minEmployeeResponses, { includeReportDetails: true }),
+  ]);
+  const company = companyResult.rows[0] ? rowCompany(companyResult.rows[0]) : null;
+  const campaign = rowCampaign(campaignRow);
+  if (!company) return null;
+
+  return {
+    id: campaign.id,
+    token: campaign.id,
+    responsibleName: company.responsavelNome || 'Responsável Técnico',
+    responsibleEmail: company.responsavelEmail || '',
+    responsiblePhone: company.responsavelTelefone || '',
+    status: campaign.status,
+    createdAt: campaign.createdAt,
+    updatedAt: campaign.updatedAt,
+    company,
+    campaign,
+    stats,
+    payment: null,
+    reportUnlocked: true,
+    settings,
+    links: {
+      dashboard: appUrl(`/campanhas/${campaign.id}/resultados`),
+      companyForm: appUrl(`/formulario/empresa/${campaign.companyFormToken}`),
+      employeeForm: appUrl(`/formulario/colaborador/${campaign.employeeFormToken}`),
+      reportPdf: apiUrl(`/reports/${campaign.id}/pdf`),
+    },
+    companyAnswers: normalizeJson(companyResponse.rows[0]?.answers),
+    companyResponseSubmittedAt: companyResponse.rows[0]?.submitted_at || null,
+  };
+}
+
 async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof buildReportData>>>) {
   return new Promise<Buffer>((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margin: 48, info: { Title: `Diagnostico NR-01 - ${data.company.razaoSocial}` } });
@@ -2525,6 +2571,24 @@ app.get('/reports/:campaignId', requireAuth, asyncHandler(async (req, res) => {
       llmAnalysis,
     },
   });
+}));
+
+app.get('/reports/:campaignId/pdf', requireAuth, asyncHandler(async (req, res) => {
+  const reportData = await buildCampaignReportData(firstParam(req.params.campaignId));
+  if (!reportData) return res.status(404).json({ error: 'not_found' });
+
+  const pdf = await generateDiagnosticPdf(reportData);
+  const fileSlug = String(reportData.company.razaoSocial || 'diagnostico')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase()
+    .slice(0, 50);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="diagnostico-nr01-${fileSlug || 'empresa'}.pdf"`);
+  res.setHeader('Content-Length', String(pdf.length));
+  res.send(pdf);
 }));
 
 app.post('/public/diagnostics', asyncHandler(async (req, res) => {
