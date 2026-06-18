@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
+  API_URL,
   api,
   formatDateValue,
   type ResultsAnalysisPayload,
@@ -197,6 +198,7 @@ export default function ResultsPage() {
   const catAverages: ResultsCategoryAverage[] = summary?.categoryAverages || getCategoryAverages();
   const mostCritical = [...catAverages].sort((a, b) => b.risk - a.risk)[0];
   const totalResponses = summary?.employeeResponsesCount ?? responses.length;
+  const reportPdfUrl = id ? `${API_URL}/reports/${encodeURIComponent(id)}/pdf` : '#';
   const riskByCategory = new Map(catAverages.map((category) => [category.name.toLocaleLowerCase('pt-BR'), category.risk]));
   const evidenceCategories = [
     ...normalizeEvidencePayload(summary?.analysis),
@@ -228,12 +230,14 @@ export default function ResultsPage() {
             </div>
           </div>
         </div>
-        <Link 
-          to={`/campanhas/${id}/relatorio`}
+        <a
+          href={reportPdfUrl}
+          target="_blank"
+          rel="noreferrer"
           className="bg-brand-600 hover:bg-brand-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-brand-500/20 transition-all transform hover:scale-105"
         >
           <FileText className="w-5 h-5" /> Gerar Relatório PDF
-        </Link>
+        </a>
       </div>
 
       {/* Summary Cards */}
