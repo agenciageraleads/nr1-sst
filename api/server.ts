@@ -1532,37 +1532,37 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
       },
       {
         name: 'Falta de suporte ou apoio no trabalho',
-        aliases: ['Falta de suporte ou apoio no trabalho'],
+        aliases: ['Falta de suporte ou apoio no trabalho', 'Suporte no trabalho', 'Apoio no trabalho', 'Suporte e apoio'],
         sources: 'liderança pouco disponível; baixa escuta; falta de orientação; recursos ou informações insuficientes.',
       },
       {
         name: 'Má gestão de mudanças organizacionais',
-        aliases: ['Má gestão de mudanças organizacionais'],
+        aliases: ['Má gestão de mudanças organizacionais', 'Gestão de mudanças', 'Mudanças organizacionais'],
         sources: 'mudanças sem comunicação prévia; baixa participação; planejamento insuficiente; insegurança sobre impactos.',
       },
       {
         name: 'Baixa clareza de papel ou função',
-        aliases: ['Baixa clareza de papel ou função'],
+        aliases: ['Baixa clareza de papel ou função', 'Clareza de papel', 'Clareza de função', 'Clareza e autonomia'],
         sources: 'responsabilidades pouco definidas; prioridades conflitantes; ordens contraditórias; limites de atuação imprecisos.',
       },
       {
         name: 'Baixas recompensas e reconhecimento',
-        aliases: ['Baixas recompensas e reconhecimento'],
+        aliases: ['Baixas recompensas e reconhecimento', 'Reconhecimento e justiça', 'Reconhecimento', 'Recompensas'],
         sources: 'feedback raro; critérios pouco transparentes; valorização insuficiente; poucas oportunidades de desenvolvimento.',
       },
       {
         name: 'Baixo controle no trabalho ou falta de autonomia',
-        aliases: ['Baixo controle no trabalho ou falta de autonomia'],
+        aliases: ['Baixo controle no trabalho ou falta de autonomia', 'Controle no trabalho', 'Autonomia', 'Clareza e autonomia'],
         sources: 'microgestão; decisões centralizadas; baixa participação em melhorias; pouca margem para organizar a rotina.',
       },
       {
         name: 'Baixa justiça organizacional',
-        aliases: ['Baixa justiça organizacional'],
+        aliases: ['Baixa justiça organizacional', 'Justiça organizacional', 'Reconhecimento e justiça'],
         sources: 'critérios pouco claros; percepção de favorecimento; distribuição desigual de tarefas; decisões pouco explicadas.',
       },
       {
         name: 'Eventos violentos ou traumáticos',
-        aliases: ['Eventos violentos ou traumáticos'],
+        aliases: ['Eventos violentos ou traumáticos', 'Eventos traumáticos', 'Violência no trabalho', 'Assédio e violência'],
         sources: 'exposição a ameaças ou perigo; falhas em protocolos de segurança; ausência de acolhimento pós-evento.',
       },
       {
@@ -1582,17 +1582,17 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
       },
       {
         name: 'Jornada de trabalho inadequada ou extensiva',
-        aliases: ['Jornada de trabalho inadequada ou extensiva'],
+        aliases: ['Jornada de trabalho inadequada ou extensiva', 'Jornada de trabalho', 'Ritmo de trabalho', 'Sobrecarga e ritmo'],
         sources: 'horas extras recorrentes; pausas insuficientes; dificuldade de recuperação; desequilíbrio entre trabalho e vida pessoal.',
       },
       {
         name: 'Conflito de valores no trabalho',
-        aliases: ['Conflito de valores no trabalho'],
+        aliases: ['Conflito de valores no trabalho', 'Conflito de valores', 'Valores no trabalho', 'Bem-estar'],
         sources: 'pressão para agir contra princípios; incoerência entre discurso e prática; medo de questionar condutas inadequadas.',
       },
     ];
     const matrixRiskLabel = (risk: number | null) => {
-      if (risk === null) return { gravity: 'Não avaliada', probability: 'Não avaliada', matrix: 'Não avaliado', color: '#64748b' };
+      if (risk === null) return { gravity: 'Baixa', probability: 'Baixa', matrix: 'Baixo', color: '#16a34a' };
       if (risk >= 76) return { gravity: 'Alta', probability: 'Alta', matrix: 'Crítico', color: '#dc2626' };
       if (risk >= 61) return { gravity: 'Alta', probability: 'Média', matrix: 'Alto', color: '#d97706' };
       if (risk >= 41) return { gravity: 'Média', probability: 'Média', matrix: 'Médio', color: '#ca8a04' };
@@ -1645,16 +1645,14 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
     };
     const matrixCellColor = (value: string) => {
       const normalized = normalizeRiskKey(value);
-      if (normalized === 'baixo') return '#dcfce7';
-      if (normalized === 'medio') return '#fef3c7';
-      if (normalized === 'alto' || normalized === 'critico') return '#fee2e2';
+      if (normalized === 'baixa' || normalized === 'baixo') return '#4caf50';
+      if (normalized === 'media' || normalized === 'medio') return '#fff34d';
+      if (normalized === 'alta' || normalized === 'alto' || normalized === 'critico') return '#ef3328';
       return null;
     };
     const matrixCellTextColor = (value: string) => {
       const normalized = normalizeRiskKey(value);
-      if (normalized === 'baixo') return '#166534';
-      if (normalized === 'medio') return '#92400e';
-      if (normalized === 'alto' || normalized === 'critico') return '#991b1b';
+      if (['baixa', 'baixo', 'media', 'medio', 'alta', 'alto', 'critico'].includes(normalized)) return '#0f172a';
       return '#334155';
     };
     const drawTable = (headers: string[], rows: string[][], widths: number[], fontSize = 6.6, options: { colorLastColumn?: boolean; colorColumns?: number[]; keepTogether?: boolean; centerColumns?: number[] } = {}) => {
