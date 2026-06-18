@@ -1657,7 +1657,7 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
       if (normalized === 'alto' || normalized === 'critico') return '#991b1b';
       return '#334155';
     };
-    const drawTable = (headers: string[], rows: string[][], widths: number[], fontSize = 6.6, options: { colorLastColumn?: boolean; keepTogether?: boolean; centerColumns?: number[] } = {}) => {
+    const drawTable = (headers: string[], rows: string[][], widths: number[], fontSize = 6.6, options: { colorLastColumn?: boolean; colorColumns?: number[]; keepTogether?: boolean; centerColumns?: number[] } = {}) => {
       const headerHeight = 22;
       const drawHeaderRow = () => {
         let x = doc.page.margins.left;
@@ -1688,7 +1688,7 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
         let x = doc.page.margins.left;
         const y = doc.y;
         row.forEach((cell, index) => {
-          const isColoredMatrixCell = Boolean(options.colorLastColumn && index === row.length - 1);
+          const isColoredMatrixCell = Boolean((options.colorLastColumn && index === row.length - 1) || options.colorColumns?.includes(index));
           const isCenteredColumn = Boolean(options.centerColumns?.includes(index));
           const fillColor = isColoredMatrixCell ? matrixCellColor(cell) : null;
           const cellTextHeight = tableTextHeight(cell, widths[index] - 8, fontSize);
@@ -1719,7 +1719,7 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
         item.classification.probability,
         item.classification.matrix,
       ]);
-      drawTable(['Fatores de Risco', 'Fontes Geradoras do Risco', 'Gravidade', 'Probabilidade', 'Matriz Risco'], rows, widths, 6.25, { colorLastColumn: true, keepTogether: true });
+      drawTable(['Fatores de Risco', 'Fontes Geradoras do Risco', 'Gravidade', 'Probabilidade', 'Matriz Risco'], rows, widths, 6.25, { colorColumns: [2, 3, 4], keepTogether: true });
     };
     const drpsRiskTableHeight = (categories = data.stats.categoryAverages || []) => {
       const availableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
