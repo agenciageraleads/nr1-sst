@@ -1518,12 +1518,6 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
       return text.length > max ? `${text.slice(0, max - 1).trim()}...` : text;
     };
     const sentenceCase = (value = '') => value ? `${value.charAt(0).toLocaleUpperCase('pt-BR')}${value.slice(1)}` : value;
-    const monthLabels = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
-    const actionMonths = Array.from({ length: 12 }, (_, index) => {
-      const date = new Date();
-      date.setMonth(date.getMonth() + index);
-      return { label: monthLabels[date.getMonth()], year: date.getFullYear() };
-    });
     const riskCatalog = [
       {
         name: 'Assédio de qualquer natureza',
@@ -1731,53 +1725,6 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
       ]);
       return estimateTableHeight(rows, widths, 6.25);
     };
-    const drawAnnualPlan = () => {
-      const actions = [
-        'Relatório de Diagnóstico dos Riscos Psicossociais',
-        'Programa de apoio psicológico e acolhimento',
-        'Programa de gestão do estresse e prevenção ao burnout',
-        'Capacitação de lideranças para gestão psicossocial',
-        'Prevenção ao assédio moral, sexual e organizacional',
-        'Avaliação e acompanhamento de clima organizacional',
-        'Comunicação assertiva e não agressiva',
-        'Equilíbrio entre vida pessoal, jornada e demandas',
-        'Treinamento de RH para acompanhamento da NR 01',
-      ];
-      const availableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-      const actionWidth = 174;
-      const monthWidth = (availableWidth - actionWidth) / 12;
-      ensureSpace(38 + actions.length * 24);
-      const startX = doc.page.margins.left;
-      let y = doc.y;
-      doc.rect(startX, y, actionWidth, 30).fillAndStroke('#f1f5f9', '#cbd5e1');
-      doc.font('Helvetica-Bold').fontSize(6.3).fillColor('#334155').text('Ação de prevenção e controle', startX + 4, y + 10, { width: actionWidth - 8, align: 'center' });
-      actionMonths.forEach((month, index) => {
-        const x = startX + actionWidth + index * monthWidth;
-        doc.rect(x, y, monthWidth, 30).fillAndStroke('#f1f5f9', '#cbd5e1');
-        doc.font('Helvetica-Bold').fontSize(5.4).fillColor('#334155').text(month.label, x + 1, y + 8, { width: monthWidth - 2, align: 'center' });
-        doc.text(String(month.year), x + 1, y + 17, { width: monthWidth - 2, align: 'center' });
-      });
-      y += 30;
-      actions.forEach((action, rowIndex) => {
-        if (y + 24 > pageBottom()) {
-          doc.addPage();
-          drawHeader();
-          y = doc.y;
-        }
-        doc.rect(startX, y, actionWidth, 24).stroke('#cbd5e1');
-        doc.font('Helvetica').fontSize(6.1).fillColor('#334155').text(action, startX + 4, y + 6, { width: actionWidth - 8 });
-        actionMonths.forEach((_, index) => {
-          const x = startX + actionWidth + index * monthWidth;
-          doc.rect(x, y, monthWidth, 24).stroke('#cbd5e1');
-          if ((rowIndex === 0 && index === 0) || (rowIndex > 0 && index >= 1 && index <= 3)) {
-            doc.circle(x + monthWidth / 2, y + 12, 2).fill('#16a34a');
-          }
-        });
-        y += 24;
-      });
-      doc.y = y + 10;
-    };
-
     // ==========================================
     // C A P A   D O   R E L A T Ó R I O   (Pág 1)
     // ==========================================
@@ -2017,20 +1964,25 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
     );
 
     sectionTitle('16. Referências Técnicas');
-    const referenceRows = [
-      ['NR 01 - Disposições Gerais e Gerenciamento de Riscos Ocupacionais.'],
-      ['Ministério do Trabalho e Emprego - orientações sobre fatores psicossociais relacionados ao trabalho.'],
-      ['Organização Internacional do Trabalho - prevenção de riscos psicossociais no trabalho.'],
-      ['Organização Mundial da Saúde - saúde mental, trabalho e fatores de proteção.'],
-      ['ISO 45001 - Sistemas de gestão de saúde e segurança ocupacional.'],
-      ['Referenciais de psicodinâmica do trabalho, estresse ocupacional e modelos demanda-controle/esforço-recompensa.'],
+    const references = [
+      'NR 01 - Disposições Gerais e Gerenciamento de Riscos Ocupacionais.',
+      'Ministério do Trabalho e Emprego - orientações sobre fatores psicossociais relacionados ao trabalho.',
+      'Organização Internacional do Trabalho - prevenção de riscos psicossociais no trabalho.',
+      'Organização Mundial da Saúde - saúde mental, trabalho e fatores de proteção.',
+      'ISO 45001 - Sistemas de gestão de saúde e segurança ocupacional.',
+      'Referenciais de psicodinâmica do trabalho, estresse ocupacional e modelos demanda-controle/esforço-recompensa.',
     ];
-    drawTable(['Referências utilizadas como base técnica'], referenceRows, [doc.page.width - doc.page.margins.left - doc.page.margins.right], 7.2);
+    references.forEach((reference) => {
+      ensureSpace(18);
+      doc.font('Helvetica').fontSize(9).fillColor('#334155').text(`• ${reference}`, doc.page.margins.left, doc.y, {
+        width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+        lineGap: 2,
+      });
+      doc.moveDown(0.35);
+    });
 
-    sectionTitle('17. Plano Anual de Implementação da NR 01');
-    drawAnnualPlan();
-
-    sectionTitle('18. Assinaturas');
+    ensureSpace(105);
+    sectionTitle('17. Assinaturas');
     doc.moveDown(2.5);
     const signatureY = doc.y;
     doc.moveTo(70, signatureY).lineTo(245, signatureY).strokeColor('#cbd5e1').stroke();
@@ -2038,12 +1990,6 @@ async function generateDiagnosticPdf(data: NonNullable<Awaited<ReturnType<typeof
     doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a').text('Responsável Técnico', 70, signatureY + 8, { width: 175, align: 'center' });
     doc.text('Representante da Empresa', 340, signatureY + 8, { width: 175, align: 'center' });
 
-    doc.font('Helvetica').fontSize(7.5).fillColor('#64748b').text(
-      'Documento técnico complementar ao PGR',
-      48,
-      doc.page.height - 45,
-      { align: 'center', width: doc.page.width - 96 }
-    );
     doc.end();
   });
 }
